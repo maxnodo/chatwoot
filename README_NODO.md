@@ -24,7 +24,7 @@ hay) y se rebuildea la imagen.
 | # | Archivo | Propósito |
 |---|---|---|
 | 1 | `app/javascript/dashboard/helper/inbox.js` | Icono `Channel::Api` muestra logo de WhatsApp en la sidebar (en lugar del corchete `{}` default). |
-| 2 | `enterprise/app/services/captain/copilot/chat_service.rb` | El Copilot expone los `captain_custom_tools` del account al modelo (Chatwoot v4.13.0 solo los expone al Captain Assistant, no al Copilot). |
+| 2 | `enterprise/app/services/captain/copilot/chat_service.rb` | (a) El Copilot expone los `captain_custom_tools` del account al modelo (Chatwoot v4.13.0 solo los expone al Captain Assistant, no al Copilot). (b) Inyecta la **fecha y hora actuales** (UTC + Madrid) al contexto del LLM, así herramientas con timestamps (`send_at` de `schedule_message`) no usan el año del training cutoff del modelo (que devuelve fechas de 2023). |
 
 ---
 
