@@ -127,3 +127,62 @@ reescritos). En ese caso:
 | `docker/Dockerfile.nodo` | Imagen custom basada en `chatwoot/chatwoot:v4.13.0` + COPY de los archivos parcheados. |
 | `.github/workflows/build-nodo-image.yml` | CI/CD que builda y publica la imagen en GHCR. |
 | `README_NODO.md` | Este documento. |
+
+---
+
+## Checklist post-deploy (smoke tests)
+
+Cada vez que cambies la imagen en EasyPanel a un tag nuevo, verificá:
+
+1. **Web service** (`chatwoot`) está corriendo la imagen nueva (EasyPanel → service → "Implementaciones" debería mostrar el tag y la hora de deploy).
+2. **Sidekiq service** (`chatwoot-sidekiq`) está corriendo la **misma** imagen. Lección de la sesión inicial: si se queda atrás, el Copilot sigue usando el código viejo en background y los patches del backend (Patch 2) **no aplican**.
+3. **Patch 1 (icono):** abrir la sidebar de Chatwoot → el inbox de Evolution muestra el ícono de WhatsApp (no `{}`). Si seguís viendo `{}`, hacé hard refresh (`Cmd+Shift+R`) — el browser cachea agresivamente los assets de Vite.
+4. **Patch 2a (Copilot custom_tools):** abrir el Copilot en una conversación del inbox Evolution → pedirle "programá un mensaje a este contacto para las HH:MM hoy diciendo X". En "Mostrar pasos" debería aparecer:
+   ```
+   Using schedule_message
+   Completed schedule_message
+   ```
+   Si no aparece, el Copilot no está exponiendo el custom_tool → sidekiq quedó con la imagen vieja.
+5. **Patch 2b (fecha dinámica):** mismo test anterior. El Copilot debe confirmar con un folio `SCHED-N` y la fecha legible **del año actual**. Si la confirmación o la DB muestran un año pasado (ej. 2023), el patch 2b no se aplicó.
+
+### Verificación rápida en SQL
+
+```sql
+-- Ultima programación creada por el Copilot
+SELECT id, send_at AT TIME ZONE 'Europe/Madrid' AS send_at_madrid,
+       content, scheduled_via, status, sent_at
+FROM nodo_scheduled_messages ORDER BY id DESC LIMIT 1;
+
+-- Audit del request: qué mandó el LLM al tool
+SELECT created_at, parsed_send_at_raw, parsed_conversation_display_id,
+       response_status, response_error, request_body_parsed
+FROM nodo_schedule_message_attempts ORDER BY id DESC LIMIT 3;
+```
+
+---
+
+## Post-mortem: bugs encontrados durante el setup inicial
+
+Anotados acá para futuros mantenedores (el `schedule_message` involucra 3 capas que tienen que estar coordinadas: Chatwoot ↔ Captain Copilot ↔ Edge Function Supabase).
+
+| # | Capa | Síntoma | Causa raíz | Fix |
+|---|---|---|---|---|
+| 1 | EF `schedule-message` | "Canal no compatible" en conv. de Evolution | EF hacía `.eq("id", conversation_id)` pero el Copilot pasa el `display_id`; matcheó por casualidad otra conv. (Email) | EF v4: `.eq("display_id", ...)` |
+| 2 | `captain_custom_tools.response_template` | Toda respuesta de la EF era "An error occurred" para el LLM, incluso en 200 OK | Template `{{message}}` con `strict_variables: true` en Liquid; el contexto solo tiene `response` y `r` como vars raíz → `UndefinedVariable` → rescatado como error genérico | `{{response.message}}` |
+| 3 | LLM (Captain Copilot) | LLM mandaba `send_at` con año 2023 (training cutoff) | El system prompt del Copilot no incluye la fecha actual | Patch 2 (b): `account_id_context` inyecta UTC + Madrid now dinámicamente |
+| 4 | `chatwoot-sidekiq` | Patch del backend no aplicaba aunque la imagen web estaba actualizada | El servicio sidekiq se quedó en la imagen vieja (no se redeployó) | Siempre redeployar **ambos** servicios al cambiar imagen |
+| 5 | Frontend (Vite assets) | Icono no cambiaba tras deploy aunque el server tenía los bundles correctos | Browser cacheaba JS/CSS agresivamente | Hard refresh (`Cmd+Shift+R`) o flush manual de localStorage/Cache Storage |
+
+---
+
+## Componente externo: Supabase Edge Function `schedule-message`
+
+El `captain_custom_tools.endpoint_url` apunta a una EF de Supabase (project `gonodo`, ref `ntncrklsckzmoaincafs`) que valida, persiste y luego (via cron) ejecuta el envío vía Evolution API.
+
+**Versión actual: v6**
+- Inserta en `nodo_scheduled_messages` (la cola que el cron `dispatch-scheduled-messages` consume cada 60s).
+- Loggea cada attempt (éxito o validación fallida) en `nodo_schedule_message_attempts` para diagnóstico.
+- Valida `account_id == 1`, `channel_type == Channel::Api`, `send_at` entre 30s y 30d en el futuro, `content` 1-4000 chars.
+- Recupera la conversación por `display_id` (¡no por `id` interno!).
+
+El código fuente de la EF NO vive en este repo — vive en Supabase. Para modificarla usar Supabase dashboard o MCP/CLI.
