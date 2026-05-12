@@ -99,9 +99,23 @@ class Captain::Copilot::ChatService < Llm::BaseAiService
   end
 
   def account_id_context
+    # NODO PATCH: inyectar fecha y hora actuales en zonas UTC y Madrid.
+    # El LLM no sabe la fecha actual (su training cutoff es anterior). Si no
+    # se la pasamos, calcula send_at de schedule_message con anios viejos
+    # (ej. 2023), lo que rompe la validacion "30s en el futuro" de la EF.
+    now_utc = Time.now.utc
+    now_madrid = now_utc.in_time_zone('Europe/Madrid')
     {
       role: 'system',
-      content: "The current account id is #{@account.id}. The account is using #{@account.locale_english_name} as the language."
+      content: <<~CTX.strip
+        The current account id is #{@account.id}. The account is using #{@account.locale_english_name} as the language.
+
+        CURRENT DATE AND TIME (use this as ground truth, ignore any internal training-data assumption about the year):
+        - UTC now: #{now_utc.iso8601}
+        - Madrid (Europe/Madrid) now: #{now_madrid.strftime('%Y-%m-%d %H:%M:%S %Z (UTC%:z)')}
+
+        When a tool requires a timestamp (e.g. send_at in ISO 8601 UTC), derive it from THIS reference, never from your internal training cutoff. To convert Madrid wall-clock to UTC, subtract the Madrid UTC offset shown above.
+      CTX
     }
   end
 
