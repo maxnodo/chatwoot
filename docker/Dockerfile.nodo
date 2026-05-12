@@ -11,9 +11,6 @@
 #   docker build -f docker/Dockerfile.nodo \
 #     --build-arg CHATWOOT_VERSION=v4.13.0 \
 #     -t ghcr.io/maxnodo/chatwoot:v4.13.0-nodo.1 .
-#
-# Push:
-#   docker push ghcr.io/maxnodo/chatwoot:v4.13.0-nodo.1
 
 ARG CHATWOOT_VERSION=v4.13.0
 
@@ -21,27 +18,32 @@ ARG CHATWOOT_VERSION=v4.13.0
 FROM chatwoot/chatwoot:${CHATWOOT_VERSION}
 
 # --- Patches del fork ---
-# Copiamos los archivos modificados sobre la imagen oficial.
-# Importante: las rutas DEBEN existir en la imagen oficial — si Chatwoot mueve un
-# archivo en una versión futura, este COPY falla con error de "file exists" o
-# directamente no aplica el patch. Es la forma deliberada de detectar drift.
+# Sobrescribimos los archivos modificados. La imagen oficial corre como root,
+# no usa un user named `chatwoot`, así que no aplicamos --chown.
+# Si Chatwoot mueve un archivo en una versión futura, este COPY falla y nos
+# avisa que hay que actualizar el patch.
 
 # Patch 1: icono de Channel::Api = WhatsApp en la sidebar
-COPY --chown=chatwoot:chatwoot \
-  app/javascript/dashboard/helper/inbox.js \
-  /app/app/javascript/dashboard/helper/inbox.js
+COPY app/javascript/dashboard/helper/inbox.js /app/app/javascript/dashboard/helper/inbox.js
 
 # Patch 2: Copilot expone captain_custom_tools al modelo
-COPY --chown=chatwoot:chatwoot \
-  enterprise/app/services/captain/copilot/chat_service.rb \
-  /app/enterprise/app/services/captain/copilot/chat_service.rb
+COPY enterprise/app/services/captain/copilot/chat_service.rb /app/enterprise/app/services/captain/copilot/chat_service.rb
 
 # --- Rebuild de assets ---
-# Como tocamos un archivo Vue/JS del frontend (inbox.js), el bundle de Webpack
-# necesita ser regenerado para que los cambios se reflejen en el navegador.
-# Si solo hubiéramos tocado Ruby, este paso no sería necesario.
-USER chatwoot
+# El patch 1 toca un archivo Vue/JS. Hay que regenerar el bundle de Webpack
+# para que el cambio aparezca en el navegador.
+# Notas:
+#   - RAILS_ENV=production fuerza el modo correcto
+#   - SECRET_KEY_BASE dummy es necesario para que precompile funcione sin
+#     conectarse a la DB real
+#   - El asset:precompile de Chatwoot incluye un pnpm/yarn build internamente
 WORKDIR /app
+
+ENV RAILS_ENV=production \
+    NODE_ENV=production \
+    SECRET_KEY_BASE=dummy_for_precompile_only \
+    SKIP_CHATWOOT_PRO=false
+
 RUN bundle exec rake assets:precompile
 
 # El ENTRYPOINT y CMD originales de la imagen base se mantienen.
