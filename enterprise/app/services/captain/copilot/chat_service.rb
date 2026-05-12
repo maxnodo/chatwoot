@@ -72,6 +72,14 @@ class Captain::Copilot::ChatService < Llm::BaseAiService
     tools << Captain::Tools::Copilot::SearchContactsService.new(@assistant, user: @user)
     tools << Captain::Tools::Copilot::SearchLinearIssuesService.new(@assistant, user: @user)
 
+    # NODO PATCH: exponer captain_custom_tools al Copilot.
+    # Chatwoot v4.13.0 no incluye los custom_tools del account en el Copilot por defecto,
+    # solo los expone al Captain Assistant. Este patch los suma tambien aca para que el
+    # agente humano pueda invocarlos via chat (ej: "programa un mensaje a este contacto").
+    tools += @account.captain_custom_tools.enabled.map do |custom_tool|
+      custom_tool.tool(@assistant, base_class: Captain::Tools::CustomHttpTool, conversation: @conversation)
+    end
+
     tools.select(&:active?)
   end
 
