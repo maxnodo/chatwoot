@@ -175,14 +175,37 @@ Anotados acá para futuros mantenedores (el `schedule_message` involucra 3 capas
 
 ---
 
-## Componente externo: Supabase Edge Function `schedule-message`
+## Componente externo: Supabase Edge Functions (project `gonodo`)
 
-El `captain_custom_tools.endpoint_url` apunta a una EF de Supabase (project `gonodo`, ref `ntncrklsckzmoaincafs`) que valida, persiste y luego (via cron) ejecuta el envío vía Evolution API.
+Los `captain_custom_tools` apuntan a Edge Functions de Supabase (project ref `ntncrklsckzmoaincafs`) que validan, persisten y operan sobre la cola `nodo_scheduled_messages`. **El código de las EFs NO vive en este repo — vive en Supabase. Para modificarlas usar el dashboard o MCP/CLI.**
 
-**Versión actual: v6**
-- Inserta en `nodo_scheduled_messages` (la cola que el cron `dispatch-scheduled-messages` consume cada 60s).
-- Loggea cada attempt (éxito o validación fallida) en `nodo_schedule_message_attempts` para diagnóstico.
-- Valida `account_id == 1`, `channel_type == Channel::Api`, `send_at` entre 30s y 30d en el futuro, `content` 1-4000 chars.
-- Recupera la conversación por `display_id` (¡no por `id` interno!).
+### Tools del Copilot para mensajes programados
 
-El código fuente de la EF NO vive en este repo — vive en Supabase. Para modificarla usar Supabase dashboard o MCP/CLI.
+| Custom tool slug | EF Supabase | Operación | HTTP | Validaciones |
+|---|---|---|---|---|
+| `schedule_message` | `schedule-message` (v6) | Crear futuro | INSERT | account=1, channel_type=Channel::Api, send_at 30s-30d futuro, content 1-4000 chars |
+| `list_scheduled_messages` | `list-scheduled-messages` (v1) | Listar/resumir | SELECT | account=1, conversation_display_id pasado |
+| `cancel_scheduled_message` | `cancel-scheduled-message` (v1) | Cancelar pending | UPDATE status='cancelled' (race-safe con `eq status=pending`) | Pertenece a la conv, status actual = pending |
+| `reschedule_scheduled_message` | `reschedule-scheduled-message` (v1) | Mover fecha | UPDATE send_at | Pertenece a la conv, status = pending, new_send_at 30s-30d futuro |
+
+Todas:
+- Recuperan la conversación por `display_id`, **NO** por `id` interno.
+- Loggean cada attempt en `nodo_schedule_message_attempts` (columna `operation` distingue `create`/`cancel`/`reschedule`).
+- Devuelven `{ "ok": true, ..., "message": "texto humano" }` para que el `response_template = {{response.message}}` extraiga el texto que el LLM le pasa al agente.
+- Verifican `account_id == 1` (single-tenant).
+
+### Cola y dispatch
+
+- **Tabla `nodo_scheduled_messages`** — la cola de mensajes pendientes (status: `pending` / `sent` / `failed` / `cancelled`).
+- **Cron `dispatch-scheduled-messages`** — corre cada 60s, lee `status='pending' AND send_at <= now() AND attempts < 3` y ejecuta el envío vía Evolution API. Los mensajes `cancelled` quedan fuera del filtro y nunca se envían.
+
+### Tabla de auditoría: `nodo_schedule_message_attempts`
+
+Cada request al EF crea una fila con:
+- `operation` — `create` / `cancel` / `reschedule` (el `list` no se logea para evitar ruido)
+- `request_body_parsed` — qué mandó el LLM (útil para ver si pasa fechas mal, IDs equivocados, etc.)
+- `parsed_send_at_raw` — el `send_at` o `new_send_at` recibido antes de validar
+- `response_status` + `response_error` — qué devolvió la EF
+- `scheduled_id` — FK al row de `nodo_scheduled_messages` afectado (NULL si fue rechazado antes)
+
+Útil para diagnosticar problemas tipo "el Copilot dice que falló pero no veo el row" o "el LLM mandó una fecha del 2023".
