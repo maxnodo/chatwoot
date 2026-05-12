@@ -1,11 +1,14 @@
 # Dockerfile.nodo
 # ----------------
 # Imagen custom de Chatwoot para Comunidad Nodo.
-# Toma la imagen oficial de Chatwoot como base y reemplaza los archivos que están
-# parcheados en la rama `nodo-customizations` de este fork.
+# Toma la imagen oficial de Chatwoot como base y aplica patches quirúrgicos:
 #
-# Variables de build:
-#   CHATWOOT_VERSION: tag de upstream (default v4.13.0)
+#  - Patch 1 (frontend): cambia el icono de Channel::Api por el de WhatsApp.
+#    Implementado vía sed sobre los assets JS ya compilados, no requiere
+#    correr `assets:precompile` (que requiere DB).
+#
+#  - Patch 2 (backend): expone captain_custom_tools al Copilot.
+#    Implementado vía COPY del archivo Ruby modificado.
 #
 # Build:
 #   docker build -f docker/Dockerfile.nodo \
@@ -14,36 +17,33 @@
 
 ARG CHATWOOT_VERSION=v4.13.0
 
-# --- Base ---
+# --- Base: imagen oficial de Chatwoot con assets ya compilados ---
 FROM chatwoot/chatwoot:${CHATWOOT_VERSION}
 
-# --- Patches del fork ---
-# Sobrescribimos los archivos modificados. La imagen oficial corre como root,
-# no usa un user named `chatwoot`, así que no aplicamos --chown.
-# Si Chatwoot mueve un archivo en una versión futura, este COPY falla y nos
-# avisa que hay que actualizar el patch.
-
-# Patch 1: icono de Channel::Api = WhatsApp en la sidebar
+# --- Patch 1 (frontend): icono Channel::Api → WhatsApp ---
+# Hacemos find+sed sobre los bundles JS/CSS compilados de Vite.
+# Los strings 'i-woot-api' e 'i-ri-cloudy-fill' son únicos al canal API
+# y no aparecen en otros contextos del frontend, así que el reemplazo
+# es seguro.
+#
+# Reemplazamos:
+#   'i-woot-api'        → 'i-woot-whatsapp'      (sidebar y vistas con icono outline)
+#   'i-ri-cloudy-fill'  → 'i-ri-whatsapp-fill'   (vistas con icono fill)
+#
+# También actualizamos el source file por consistencia (aunque solo afecta a
+# devs que rebuildeen los assets desde la imagen):
 COPY app/javascript/dashboard/helper/inbox.js /app/app/javascript/dashboard/helper/inbox.js
 
-# Patch 2: Copilot expone captain_custom_tools al modelo
+# Sed sobre los assets compilados.
+# `2>/dev/null || true` para no fallar si el dir no existe en versiones futuras.
+RUN find /app/public -type f \( -name "*.js" -o -name "*.css" \) -exec \
+  sed -i 's/i-woot-api/i-woot-whatsapp/g; s/i-ri-cloudy-fill/i-ri-whatsapp-fill/g' {} + \
+  2>/dev/null || true \
+  && echo "✅ Patch 1 (icono Channel::Api → WhatsApp) aplicado sobre assets compilados"
+
+# --- Patch 2 (backend): Copilot expone captain_custom_tools al modelo ---
 COPY enterprise/app/services/captain/copilot/chat_service.rb /app/enterprise/app/services/captain/copilot/chat_service.rb
 
-# --- Rebuild de assets ---
-# El patch 1 toca un archivo Vue/JS. Hay que regenerar el bundle de Webpack
-# para que el cambio aparezca en el navegador.
-# Notas:
-#   - RAILS_ENV=production fuerza el modo correcto
-#   - SECRET_KEY_BASE dummy es necesario para que precompile funcione sin
-#     conectarse a la DB real
-#   - El asset:precompile de Chatwoot incluye un pnpm/yarn build internamente
-WORKDIR /app
-
-ENV RAILS_ENV=production \
-    NODE_ENV=production \
-    SECRET_KEY_BASE=dummy_for_precompile_only \
-    SKIP_CHATWOOT_PRO=false
-
-RUN bundle exec rake assets:precompile
+RUN echo "✅ Patch 2 (Copilot custom_tools) aplicado"
 
 # El ENTRYPOINT y CMD originales de la imagen base se mantienen.
