@@ -131,6 +131,46 @@ reescritos). En ese caso:
 
 ---
 
+## Configuración de Active Storage (CRÍTICO)
+
+Chatwoot guarda los attachments (imágenes, audios, archivos) usando Rails Active Storage.
+Por **default** está configurado como `local` (disk en `/app/storage` del container) — pero
+con `chatwoot` (web) y `chatwoot-sidekiq` corriendo en containers **separados**, esto rompe
+las imágenes incoming de WhatsApp Cloud (sidekiq descarga el archivo, lo guarda en su disk
+local, y el web service no lo encuentra al servirlo → 404).
+
+**La configuración correcta es Supabase Storage como backend S3-compatible.** Bucket usado:
+`chatwoot-storage` en el project Supabase `gonodo` (ref `ntncrklsckzmoaincafs`).
+
+### Env vars requeridas en AMBOS servicios (`chatwoot` + `chatwoot-sidekiq`)
+
+```
+ACTIVE_STORAGE_SERVICE=s3_compatible
+STORAGE_ACCESS_KEY_ID=<access_key_id del bucket>
+STORAGE_SECRET_ACCESS_KEY=<secret_access_key del bucket>
+STORAGE_REGION=eu-west-1
+STORAGE_BUCKET_NAME=chatwoot-storage
+STORAGE_ENDPOINT=https://ntncrklsckzmoaincafs.supabase.co/storage/v1/s3
+STORAGE_FORCE_PATH_STYLE=true
+```
+
+### Cómo generar las S3 access keys del bucket
+
+1. Dashboard Supabase → project gonodo → `Storage` → Settings → sección **"S3 Access Keys"**:
+   `https://supabase.com/dashboard/project/ntncrklsckzmoaincafs/storage/settings`
+2. Click "New access key" → asignar nombre (ej: `s3nodo` o `chatwoot-prod`)
+3. **El secret access key solo se muestra una vez en el modal** — copiarlo a un gestor de
+   contraseñas inmediatamente. Si se pierde, hay que borrar la key y crear una nueva.
+
+### ⚠️ Si redeployás de un Chatwoot vanilla a esta config
+
+Los attachments creados ANTES del switch quedan en el disk local del container `chatwoot`
+y se pueden perder al reiniciar/upgradear. Si son críticos, migrarlos manualmente al
+bucket de Supabase antes de cambiar las env vars. Si no, los nuevos van bien y los viejos
+se degradan gradualmente.
+
+---
+
 ## Checklist post-deploy (smoke tests)
 
 Cada vez que cambies la imagen en EasyPanel a un tag nuevo, verificá:
@@ -173,6 +213,8 @@ Anotados acá para futuros mantenedores (el `schedule_message` involucra 3 capas
 | 3 | LLM (Captain Copilot) | LLM mandaba `send_at` con año 2023 (training cutoff) | El system prompt del Copilot no incluye la fecha actual | Patch 2 (b): `account_id_context` inyecta UTC + Madrid now dinámicamente |
 | 4 | `chatwoot-sidekiq` | Patch del backend no aplicaba aunque la imagen web estaba actualizada | El servicio sidekiq se quedó en la imagen vieja (no se redeployó) | Siempre redeployar **ambos** servicios al cambiar imagen |
 | 5 | Frontend (Vite assets) | Icono no cambiaba tras deploy aunque el server tenía los bundles correctos | Browser cacheaba JS/CSS agresivamente | Hard refresh (`Cmd+Shift+R`) o flush manual de localStorage/Cache Storage |
+| 6 | Sidebar nativa | Tras pasar a build completo (Dockerfile.nodo v4), el inbox Channel::Api volvió a mostrar el icono default (no WhatsApp) | El Patch 1 modificaba `helper/inbox.js` pero la sidebar nativa usa otro mapeo en `components-next/icon/provider.js`. Antes el SED reemplazaba `i-woot-api` en TODOS los assets compilados — al sacar el SED, este archivo quedó sin tocar | Patch 1b: aplicar el cambio tambien en `provider.js` |
+| 7 | Active Storage (imágenes incoming WA Cloud) | "Esta imagen ya no está disponible" en la UI aunque la imagen sí llegaba al WhatsApp | `chatwoot` (web) y `chatwoot-sidekiq` corren en containers **separados** con `/app/storage/` local cada uno. Webhook de WA Cloud delega a Sidekiq vía `Webhooks::WhatsappEventsJob.perform_later`, que descarga el archivo y lo guarda en el disk del sidekiq. El web service luego no lo encuentra → 404 en `/rails/active_storage/disk/...` | Migrar Active Storage de `local` a `s3_compatible` apuntando al bucket `chatwoot-storage` de Supabase (storage compartido entre containers). Ver sección "Configuración de Active Storage" más arriba. |
 
 ---
 
