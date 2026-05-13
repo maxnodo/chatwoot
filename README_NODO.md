@@ -186,7 +186,9 @@ Los `captain_custom_tools` apuntan a Edge Functions de Supabase (project ref `nt
 | `schedule_message` | `schedule-message` (v6) | Crear futuro | INSERT | account=1, channel_type=Channel::Api, send_at 30s-30d futuro, content 1-4000 chars |
 | `list_scheduled_messages` | `list-scheduled-messages` (v1) | Listar/resumir | SELECT | account=1, conversation_display_id pasado |
 | `cancel_scheduled_message` | `cancel-scheduled-message` (v1) | Cancelar pending | UPDATE status='cancelled' (race-safe con `eq status=pending`) | Pertenece a la conv, status actual = pending |
-| `reschedule_scheduled_message` | `reschedule-scheduled-message` (v1) | Mover fecha | UPDATE send_at | Pertenece a la conv, status = pending, new_send_at 30s-30d futuro |
+| `update_scheduled_message` | `update-scheduled-message` (v1) | Modificar contenido y/o fecha de un pending | UPDATE content y/o send_at | Pertenece a la conv, status = pending, al menos uno de `new_content` o `new_send_at` debe venir, y los que vienen pasan sus validaciones (content 1-4000 chars, send_at 30s-30d futuro). Detecta y descarta valores `{{...}}` no renderizados por Liquid. |
+
+> **Nota:** La EF antigua `reschedule-scheduled-message` (v1) sigue deployada por seguridad pero su custom_tool fue renombrado a `update_scheduled_message`. Threads viejos del Copilot que tengan el slug viejo en su historial pueden confundirse — se recomienda thread nuevo después del rename.
 
 Todas:
 - Recuperan la conversación por `display_id`, **NO** por `id` interno.
