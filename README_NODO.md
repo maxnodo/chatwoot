@@ -23,7 +23,7 @@ hay) y se rebuildea la imagen.
 
 | # | Archivo | Propósito |
 |---|---|---|
-| 1 | `app/javascript/dashboard/helper/inbox.js` | Icono `Channel::Api` muestra logo de WhatsApp en la sidebar (en lugar del corchete `{}` default). |
+| 1 | `app/javascript/dashboard/helper/inbox.js` + `app/javascript/dashboard/components-next/icon/provider.js` (1b) | Icono `Channel::Api` muestra logo de WhatsApp en TODAS las vistas: sidebar nativa (via `provider.js`/`ChannelIcon`), InboxCard, ConversationCard, etc. (via `helper/inbox.js`). |
 | 2 | `enterprise/app/services/captain/copilot/chat_service.rb` | (a) El Copilot expone los `captain_custom_tools` del account al modelo (Chatwoot v4.13.0 solo los expone al Captain Assistant, no al Copilot). (b) Inyecta la **fecha y hora actuales** (UTC + Madrid) al contexto del LLM, así herramientas con timestamps (`send_at` de `schedule_message`) no usan el año del training cutoff del modelo (que devuelve fechas de 2023). |
 | 4 | `app/javascript/dashboard/routes/dashboard/conversation/contact/ContactLocalTime.vue` (new) + `ContactInfo.vue` (edit) | Muestra la **hora local actual del contacto** en el panel "Información de contacto", calculada a partir del `country_code` que ya guarda Chatwoot. Resuelve el timezone via `countries-and-timezones` y formatea con `date-fns-tz`. Se refresca cada 30s. Graceful degradation: si no hay country_code seteado, no aparece nada. |
 

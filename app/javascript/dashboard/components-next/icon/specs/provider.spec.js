@@ -1,10 +1,12 @@
 import { useChannelIcon } from '../provider';
 
 describe('useChannelIcon', () => {
+  // NODO PATCH 1b: el icono de Channel::Api fue remapeado a 'i-woot-whatsapp'
+  // (Evolution corre WhatsApp por debajo) — ver provider.js para contexto.
   it('returns correct icon for API channel', () => {
     const inbox = { channel_type: 'Channel::Api' };
     const { value: icon } = useChannelIcon(inbox);
-    expect(icon).toBe('i-woot-api');
+    expect(icon).toBe('i-woot-whatsapp');
   });
 
   it('returns correct icon for Facebook channel', () => {
