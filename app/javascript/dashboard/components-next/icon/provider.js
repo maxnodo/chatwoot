@@ -3,7 +3,14 @@ import { isVoiceCallEnabled } from 'dashboard/helper/inbox';
 
 export function useChannelIcon(inbox) {
   const channelTypeIconMap = {
-    'Channel::Api': 'i-woot-api',
+    // NODO PATCH 1b: inboxes Channel::Api (Evolution) muestran el icono de
+    // WhatsApp en la sidebar (en vez del icono default 'i-woot-api' que es
+    // un brace generico). Antes lo haciamos con `sed` sobre los assets
+    // compilados, pero al pasar a build completo (Dockerfile.nodo v4) tuvimos
+    // que aplicarlo a nivel de source. El helper `dashboard/helper/inbox.js`
+    // ya tenia este mapeo, pero la sidebar nativa usa este `provider.js`
+    // (via ChannelLeaf -> ChannelIcon -> useChannelIcon).
+    'Channel::Api': 'i-woot-whatsapp',
     'Channel::Email': 'i-woot-mail',
     'Channel::FacebookPage': 'i-woot-messenger',
     'Channel::Line': 'i-woot-line',
