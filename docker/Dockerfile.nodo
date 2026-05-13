@@ -1,49 +1,177 @@
-# Dockerfile.nodo
-# ----------------
+# Dockerfile.nodo (v4 — build completo desde sources)
+# ----------------------------------------------------
 # Imagen custom de Chatwoot para Comunidad Nodo.
-# Toma la imagen oficial de Chatwoot como base y aplica patches quirúrgicos:
 #
-#  - Patch 1 (frontend): cambia el icono de Channel::Api por el de WhatsApp.
-#    Implementado vía sed sobre los assets JS ya compilados, no requiere
-#    correr `assets:precompile` (que requiere DB).
+# A diferencia de las versiones anteriores que partían de chatwoot/chatwoot:v4.13.0
+# ya pre-built y modificaban assets via `sed`, esta version hace build completo
+# desde sources. Necesario porque Patch 4 introduce un componente Vue nuevo
+# (ContactLocalTime.vue) que requiere recompilar Vite — el `sed` no puede agregar
+# nuevos componentes, solo modificar strings existentes.
 #
-#  - Patch 2 (backend): expone captain_custom_tools al Copilot.
-#    Implementado vía COPY del archivo Ruby modificado.
+# Build estimado: ~8-12 min (vs ~2 min del approach anterior).
+# Beneficio: cualquier modificacion a Vue/Ruby/CSS se incluye correctamente.
 #
-# Build:
+# Patches incluidos (todos viven en el source del fork, branch nodo-customizations):
+#   - Patch 1: icono Channel::Api → WhatsApp en sidebar
+#       app/javascript/dashboard/helper/inbox.js
+#   - Patch 2a: Copilot expone captain_custom_tools
+#   - Patch 2b: contexto del Copilot inyecta fecha/hora actual (UTC + Madrid)
+#       enterprise/app/services/captain/copilot/chat_service.rb
+#   - Patch 4: hora local del contacto en panel "Información de contacto"
+#       app/javascript/dashboard/routes/dashboard/conversation/contact/ContactLocalTime.vue (new)
+#       app/javascript/dashboard/routes/dashboard/conversation/contact/ContactInfo.vue (edit)
+#
+# Build local:
 #   docker build -f docker/Dockerfile.nodo \
-#     --build-arg CHATWOOT_VERSION=v4.13.0 \
-#     -t ghcr.io/maxnodo/chatwoot:v4.13.0-nodo.1 .
-
-ARG CHATWOOT_VERSION=v4.13.0
-
-# --- Base: imagen oficial de Chatwoot con assets ya compilados ---
-FROM chatwoot/chatwoot:${CHATWOOT_VERSION}
-
-# --- Patch 1 (frontend): icono Channel::Api → WhatsApp ---
-# Hacemos find+sed sobre los bundles JS/CSS compilados de Vite.
-# Los strings 'i-woot-api' e 'i-ri-cloudy-fill' son únicos al canal API
-# y no aparecen en otros contextos del frontend, así que el reemplazo
-# es seguro.
+#     -t ghcr.io/maxnodo/chatwoot:v4.13.0-nodo.N .
 #
-# Reemplazamos:
-#   'i-woot-api'        → 'i-woot-whatsapp'      (sidebar y vistas con icono outline)
-#   'i-ri-cloudy-fill'  → 'i-ri-whatsapp-fill'   (vistas con icono fill)
-#
-# También actualizamos el source file por consistencia (aunque solo afecta a
-# devs que rebuildeen los assets desde la imagen):
-COPY app/javascript/dashboard/helper/inbox.js /app/app/javascript/dashboard/helper/inbox.js
+# (Este Dockerfile es estructuralmente equivalente al docker/Dockerfile oficial de
+#  Chatwoot v4.13.0. Los patches se aplican via el COPY . /app porque ya estan
+#  en el source.)
 
-# Sed sobre los assets compilados.
-# `2>/dev/null || true` para no fallar si el dir no existe en versiones futuras.
-RUN find /app/public -type f \( -name "*.js" -o -name "*.css" \) -exec \
-  sed -i 's/i-woot-api/i-woot-whatsapp/g; s/i-ri-cloudy-fill/i-ri-whatsapp-fill/g' {} + \
-  2>/dev/null || true \
-  && echo "✅ Patch 1 (icono Channel::Api → WhatsApp) aplicado sobre assets compilados"
+# pre-build stage
+FROM node:24-alpine as node
+FROM ruby:3.4.4-alpine3.21 AS pre-builder
 
-# --- Patch 2 (backend): Copilot expone captain_custom_tools al modelo ---
-COPY enterprise/app/services/captain/copilot/chat_service.rb /app/enterprise/app/services/captain/copilot/chat_service.rb
+ARG NODE_VERSION="24.13.0"
+ARG PNPM_VERSION="10.2.0"
+ENV NODE_VERSION=${NODE_VERSION}
+ENV PNPM_VERSION=${PNPM_VERSION}
 
-RUN echo "✅ Patch 2 (Copilot custom_tools) aplicado"
+ARG BUNDLE_WITHOUT="development:test"
+ENV BUNDLE_WITHOUT ${BUNDLE_WITHOUT}
+ENV BUNDLER_VERSION=2.5.16
 
-# El ENTRYPOINT y CMD originales de la imagen base se mantienen.
+ARG RAILS_SERVE_STATIC_FILES=true
+ENV RAILS_SERVE_STATIC_FILES ${RAILS_SERVE_STATIC_FILES}
+
+ARG RAILS_ENV=production
+ENV RAILS_ENV ${RAILS_ENV}
+
+ARG NODE_OPTIONS="--max-old-space-size=4096 --openssl-legacy-provider"
+ENV NODE_OPTIONS ${NODE_OPTIONS}
+
+ENV BUNDLE_PATH="/gems"
+
+RUN apk update && apk add --no-cache \
+  openssl \
+  tar \
+  build-base \
+  tzdata \
+  postgresql-dev \
+  postgresql-client \
+  git \
+  curl \
+  xz \
+  && mkdir -p /var/app \
+  && gem install bundler -v "$BUNDLER_VERSION"
+
+COPY --from=node /usr/local/bin/node /usr/local/bin/
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+  && ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+
+RUN npm install -g pnpm@${PNPM_VERSION}
+
+RUN echo 'export PNPM_HOME="/root/.local/share/pnpm"' >> /root/.shrc \
+  && echo 'export PATH="$PNPM_HOME:$PATH"' >> /root/.shrc \
+  && export PNPM_HOME="/root/.local/share/pnpm" \
+  && export PATH="$PNPM_HOME:$PATH" \
+  && pnpm --version
+
+ENV PNPM_HOME="/root/.local/share/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+WORKDIR /app
+
+COPY Gemfile Gemfile.lock ./
+
+RUN apk update && apk add --no-cache build-base musl ruby-full ruby-dev gcc make musl-dev openssl openssl-dev g++ linux-headers xz vips
+RUN bundle config set --local force_ruby_platform true
+
+RUN if [ "$RAILS_ENV" = "production" ]; then \
+  bundle config set without 'development test'; bundle install -j 4 -r 3; \
+  else bundle install -j 4 -r 3; \
+  fi
+
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm i
+
+# Trae source completo del fork (incluye Patches 1, 2a, 2b, 4 ya aplicados).
+COPY . /app
+
+RUN mkdir -p /app/log
+
+# Compilacion de assets — incluye nuestros patches Vue.
+RUN if [ "$RAILS_ENV" = "production" ]; then \
+  SECRET_KEY_BASE=precompile_placeholder RAILS_LOG_TO_STDOUT=enabled bundle exec rake assets:precompile \
+  && rm -rf spec node_modules tmp/cache; \
+  fi
+
+RUN git rev-parse HEAD > /app/.git_sha
+
+RUN rm -rf /gems/ruby/3.4.0/cache/*.gem \
+  && find /gems/ruby/3.4.0/gems/ \( -name "*.c" -o -name "*.o" \) -delete \
+  && rm -rf .git \
+  && rm .gitignore
+
+# final stage
+FROM ruby:3.4.4-alpine3.21
+
+ARG NODE_VERSION="24.13.0"
+ARG PNPM_VERSION="10.2.0"
+ENV NODE_VERSION=${NODE_VERSION}
+ENV PNPM_VERSION=${PNPM_VERSION}
+
+ARG BUNDLE_WITHOUT="development:test"
+ENV BUNDLE_WITHOUT ${BUNDLE_WITHOUT}
+ENV BUNDLER_VERSION=2.5.16
+
+ARG EXECJS_RUNTIME="Disabled"
+ENV EXECJS_RUNTIME ${EXECJS_RUNTIME}
+
+ARG RAILS_SERVE_STATIC_FILES=true
+ENV RAILS_SERVE_STATIC_FILES ${RAILS_SERVE_STATIC_FILES}
+
+ARG BUNDLE_FORCE_RUBY_PLATFORM=1
+ENV BUNDLE_FORCE_RUBY_PLATFORM ${BUNDLE_FORCE_RUBY_PLATFORM}
+
+ARG RAILS_ENV=production
+ENV RAILS_ENV ${RAILS_ENV}
+ENV BUNDLE_PATH="/gems"
+
+RUN apk update && apk add --no-cache \
+  build-base \
+  openssl \
+  tzdata \
+  postgresql-client \
+  imagemagick \
+  git \
+  vips \
+  && gem install bundler -v "$BUNDLER_VERSION"
+
+COPY --from=node /usr/local/bin/node /usr/local/bin/
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+
+RUN if [ "$RAILS_ENV" != "production" ]; then \
+  apk add --no-cache curl \
+  && ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+  && ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+  && npm install -g pnpm@${PNPM_VERSION} \
+  && pnpm --version; \
+  fi
+
+COPY --from=pre-builder /gems/ /gems/
+COPY --from=pre-builder /app /app
+
+COPY --from=pre-builder /app/.git_sha /app/.git_sha
+
+WORKDIR /app
+
+EXPOSE 3000
+
+# ENTRYPOINT y CMD del servicio web por default. El servicio sidekiq override
+# el CMD a `bundle exec sidekiq -C config/sidekiq.yml` desde la config de
+# EasyPanel.
+ENTRYPOINT ["docker/entrypoints/rails.sh"]
+CMD ["bundle", "exec", "rails", "s", "-p", "3000", "-b", "0.0.0.0"]

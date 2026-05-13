@@ -8,6 +8,7 @@ import {
 import { dynamicTime } from 'shared/helpers/timeHelper';
 import { useAdmin } from 'dashboard/composables/useAdmin';
 import ContactInfoRow from './ContactInfoRow.vue';
+import ContactLocalTime from './ContactLocalTime.vue';
 import Avatar from 'next/avatar/Avatar.vue';
 import SocialIcons from './SocialIcons.vue';
 import EditContact from './EditContact.vue';
@@ -22,6 +23,7 @@ export default {
   components: {
     NextButton,
     ContactInfoRow,
+    ContactLocalTime,
     EditContact,
     Avatar,
     ComposeConversation,
@@ -289,6 +291,9 @@ export default {
             icon="map"
             emoji="🌍"
             :title="$t('CONTACT_PANEL.LOCATION')"
+          />
+          <ContactLocalTime
+            :country-code="additionalAttributes.country_code"
           />
           <SocialIcons :social-profiles="socialProfiles" />
         </div>
