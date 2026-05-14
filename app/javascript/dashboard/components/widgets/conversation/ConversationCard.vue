@@ -11,6 +11,8 @@ import UnreadBadge from 'dashboard/components-next/Conversation/ConversationCard
 import SLACardLabel from './components/SLACardLabel.vue';
 import VoiceCallStatus from './VoiceCallStatus.vue';
 import Checkbox from 'dashboard/components-next/checkbox/Checkbox.vue';
+// NODO PATCH 5b: insignia "Cliente verificado" en la bandeja de entrada legacy.
+import CustomerVerifiedBadge from 'dashboard/routes/dashboard/conversation/contact/CustomerVerifiedBadge.vue';
 
 const props = defineProps({
   chat: { type: Object, required: true },
@@ -173,6 +175,10 @@ watch(
         :class="hasUnread ? 'font-semibold' : 'font-medium'"
       >
         {{ currentContact.name }}
+        <!-- NODO PATCH 5b: insignia Cliente al lado del nombre en la bandeja -->
+        <CustomerVerifiedBadge
+          :custom-attributes="currentContact.custom_attributes || currentContact.customAttributes"
+        />
       </h4>
       <VoiceCallStatus
         v-if="voiceCallData.status"
