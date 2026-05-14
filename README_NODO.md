@@ -26,6 +26,7 @@ hay) y se rebuildea la imagen.
 | 1 | `app/javascript/dashboard/helper/inbox.js` + `app/javascript/dashboard/components-next/icon/provider.js` (1b) | Icono `Channel::Api` muestra logo de WhatsApp en TODAS las vistas: sidebar nativa (via `provider.js`/`ChannelIcon`), InboxCard, ConversationCard, etc. (via `helper/inbox.js`). |
 | 2 | `enterprise/app/services/captain/copilot/chat_service.rb` | (a) El Copilot expone los `captain_custom_tools` del account al modelo (Chatwoot v4.13.0 solo los expone al Captain Assistant, no al Copilot). (b) Inyecta la **fecha y hora actuales** (UTC + Madrid) al contexto del LLM, así herramientas con timestamps (`send_at` de `schedule_message`) no usan el año del training cutoff del modelo (que devuelve fechas de 2023). |
 | 4 | `app/javascript/dashboard/routes/dashboard/conversation/contact/ContactLocalTime.vue` (new) + `ContactInfo.vue` (edit) | Muestra la **hora local actual del contacto** en el panel "Información de contacto", calculada a partir del `country_code` que ya guarda Chatwoot. Resuelve el timezone via `countries-and-timezones` y formatea con `date-fns-tz`. Se refresca cada 30s. Graceful degradation: si no hay country_code seteado, no aparece nada. |
+| 5 | `app/javascript/dashboard/routes/dashboard/conversation/contact/CustomerVerifiedBadge.vue` (new) + `ContactInfo.vue` (edit) | **Insignia ✓ azul "Cliente verificado"** al lado del nombre del contacto cuando `custom_attributes.etapa_comercial === 'Cierre'`. Acompañado de 7 Custom Attributes nativos creados en la cuenta (ver sección "Tab Comercial — Nivel B" más abajo) que conforman un mini-CRM dentro de Chatwoot **sin necesidad de tablas/UI custom**. Estética tipo Twitter/X verified. |
 
 ---
 
@@ -254,3 +255,80 @@ Cada request al EF crea una fila con:
 - `scheduled_id` — FK al row de `nodo_scheduled_messages` afectado (NULL si fue rechazado antes)
 
 Útil para diagnosticar problemas tipo "el Copilot dice que falló pero no veo el row" o "el LLM mandó una fecha del 2023".
+
+---
+
+## Tab Comercial — Nivel B (mini-CRM via Custom Attributes nativos)
+
+En vez de armar un tab dedicado con tabla `oportunidades` y UI custom (Nivel D del
+handoff original), arrancamos con un **mini-CRM 100% basado en Custom Attributes
+nativos de Chatwoot**. La única pieza custom es la insignia ✓ azul "Cliente
+verificado" (Patch 5).
+
+### Los 7 Custom Attributes (account 1, scope `contact_attribute`)
+
+| Display name | `attribute_key` | Type | Valores (si list) |
+|---|---|---|---|
+| Etapa comercial | `etapa_comercial` | List | Prospecto · Calificado · Propuesta · Negociación · Cierre |
+| Título oportunidad | `titulo_oportunidad` | Text | — |
+| Fuente del lead | `fuente_lead` | List | Web form · WhatsApp · Email entrante · Llamada entrante · Referido · LinkedIn · Evento · Otro |
+| Monto | `monto_oportunidad` | Currency | — |
+| Probabilidad de cierre | `probabilidad_cierre` | Percent | — |
+| Cierre estimado | `fecha_cierre_estimada` | Date | — |
+| Notas comerciales | `notas_comerciales` | Text | — |
+
+Aparecen automáticamente en el panel lateral del contacto en cualquier conversación.
+Editables inline por cualquier agent.
+
+### Cómo se replican a cuentas nuevas
+
+Los Custom Attributes son **por cuenta**, no globales. Cuando se cree una cuenta nueva
+(día que escalemos a multi-tenant), hay 2 caminos:
+
+- **Manual**: ir a Settings → Custom Attributes y recrearlos (5 min por cuenta).
+- **Auto (SQL)**: query para clonar las 7 definitions de account 1 a la cuenta nueva.
+
+```sql
+-- Auto-clonar Custom Attributes de account 1 a account N
+INSERT INTO custom_attribute_definitions
+  (account_id, attribute_model, attribute_display_name, attribute_key,
+   attribute_display_type, attribute_description, attribute_values,
+   created_at, updated_at)
+SELECT
+  N AS account_id,
+  attribute_model, attribute_display_name, attribute_key,
+  attribute_display_type, attribute_description, attribute_values,
+  now(), now()
+FROM custom_attribute_definitions
+WHERE account_id = 1
+  AND attribute_key IN (
+    'etapa_comercial','titulo_oportunidad','fuente_lead','monto_oportunidad',
+    'probabilidad_cierre','fecha_cierre_estimada','notas_comerciales'
+  );
+```
+
+### Workflow operativo del agente
+
+1. Llega un nuevo contacto (cualquier inbox o creación manual).
+2. Abre la conversación → panel lateral → completar:
+   - `Etapa comercial` → arranca con "Prospecto"
+   - `Fuente del lead` → según origen
+   - (opcional) `Título oportunidad`, `Monto`, `Probabilidad`, etc.
+3. A medida que avanza la negociación, cambiar `Etapa comercial` paso a paso.
+4. Al setear `Etapa comercial = Cierre` → **aparece automáticamente la insignia ✓ azul**
+   al lado del nombre del contacto (Patch 5).
+5. Si el agent vuelve la etapa hacia atrás, la insignia desaparece (no persiste).
+
+### Limitaciones conocidas (vs Nivel D del handoff original)
+
+- **Sin embudo visual clickeable** (5 dots con animación) — solo dropdown plano del
+  Custom Attribute.
+- **Sin counters de interacciones** (Llamada/Email/Reunión/WhatsApp +1).
+- **Sin auto-cálculo de probabilidad** según etapa — el agent la setea a mano (en
+  Nivel C lo podemos automatizar con automation rule).
+- **Sin tab separado "Comercial"** — los attributes viven en el panel general del
+  contacto.
+- **Insignia no persistente**: si la etapa vuelve atrás de "Cierre", la ✓ desaparece.
+- **Sin auto-creación de oportunidad**: el agent completa los attributes manualmente.
+
+Cuando estos límites se vuelvan problemáticos en la práctica, escalamos a Nivel C/D.
