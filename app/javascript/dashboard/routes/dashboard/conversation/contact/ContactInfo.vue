@@ -9,6 +9,7 @@ import { dynamicTime } from 'shared/helpers/timeHelper';
 import { useAdmin } from 'dashboard/composables/useAdmin';
 import ContactInfoRow from './ContactInfoRow.vue';
 import ContactLocalTime from './ContactLocalTime.vue';
+import CustomerVerifiedBadge from './CustomerVerifiedBadge.vue';
 import Avatar from 'next/avatar/Avatar.vue';
 import SocialIcons from './SocialIcons.vue';
 import EditContact from './EditContact.vue';
@@ -24,6 +25,7 @@ export default {
     NextButton,
     ContactInfoRow,
     ContactLocalTime,
+    CustomerVerifiedBadge,
     EditContact,
     Avatar,
     ComposeConversation,
@@ -213,6 +215,9 @@ export default {
             @click="startEditingName"
           >
             {{ contact.name }}
+            <CustomerVerifiedBadge
+              :custom-attributes="contact.custom_attributes"
+            />
             <span
               class="i-lucide-pencil text-xs text-n-slate-10 opacity-0 group-hover/name:opacity-100 transition-opacity ml-1 align-middle"
             />
