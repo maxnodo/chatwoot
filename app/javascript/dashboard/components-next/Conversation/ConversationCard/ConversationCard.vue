@@ -10,6 +10,8 @@ import Avatar from 'dashboard/components-next/avatar/Avatar.vue';
 import CardMessagePreview from './CardMessagePreview.vue';
 import CardMessagePreviewWithMeta from './CardMessagePreviewWithMeta.vue';
 import CardPriorityIcon from './CardPriorityIcon.vue';
+// NODO PATCH 5b: insignia "Cliente verificado" en la bandeja de entrada.
+import CustomerVerifiedBadge from 'dashboard/routes/dashboard/conversation/contact/CustomerVerifiedBadge.vue';
 
 const props = defineProps({
   conversation: {
@@ -41,6 +43,14 @@ const currentContactName = computed(() => currentContact.value?.name);
 const currentContactThumbnail = computed(() => currentContact.value?.thumbnail);
 const currentContactStatus = computed(
   () => currentContact.value?.availabilityStatus
+);
+// NODO PATCH 5b: el shape del contact puede venir en camelCase o snake_case
+// segun donde se construya en el store. Soportamos los dos.
+const currentContactCustomAttributes = computed(
+  () =>
+    currentContact.value?.customAttributes ||
+    currentContact.value?.custom_attributes ||
+    {}
 );
 
 const inbox = computed(() => props.stateInbox);
@@ -99,9 +109,15 @@ const onCardClick = e => {
     />
     <div class="flex flex-col w-full gap-1 min-w-0">
       <div class="flex items-center justify-between h-6 gap-2">
-        <h4 class="text-base font-medium truncate text-n-slate-12">
-          {{ currentContactName }}
-        </h4>
+        <div class="flex items-center min-w-0 flex-1">
+          <h4 class="text-base font-medium truncate text-n-slate-12">
+            {{ currentContactName }}
+          </h4>
+          <!-- NODO PATCH 5b: insignia Cliente al lado del nombre en la lista -->
+          <CustomerVerifiedBadge
+            :custom-attributes="currentContactCustomAttributes"
+          />
+        </div>
         <div class="flex items-center gap-2">
           <CardPriorityIcon :priority="conversation.priority || null" />
           <div
