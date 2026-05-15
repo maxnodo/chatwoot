@@ -256,6 +256,8 @@ Rails.application.routes.draw do
             get :health, on: :member
             post :register_webhook, on: :member
             post :reset_secret, on: :member
+            # NODO PATCH 6: quota de campañas Evolution (rolling 24h por inbox)
+            resource :api_campaign_quota, only: [:show], controller: 'inboxes/api_campaign_quotas'
             if ChatwootApp.enterprise?
               resource :conference, only: %i[create destroy], controller: 'conference' do
                 get :token, on: :member

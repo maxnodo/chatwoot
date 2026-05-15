@@ -185,6 +185,14 @@
 - name: whatsapp_campaign
   display_name: WhatsApp Campaign
   enabled: false
+# NODO PATCH 6: campañas para canales Channel::Api (Evolution). Cap 200/24h
+# por inbox (rolling window), delay aleatorio 3-20s, soporte de imagen via URL,
+# spread automatico si la audiencia excede 200, exclusion mutua por inbox.
+# Activable como add-on premium desde el panel de Super Admin de Chatwoot.
+- name: api_campaign
+  display_name: Evolution Campaigns
+  enabled: false
+  premium: true
 - name: crm_v2
   display_name: CRM V2
   enabled: false
