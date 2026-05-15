@@ -46,7 +46,7 @@ class Api::V1::Accounts::Inboxes::ApiCampaignQuotasController < Api::V1::Account
   def build_response
     {
       feature_enabled: Current.account.feature_enabled?(:api_campaign),
-      inbox_type_supported: @inbox.inbox_type == 'Api',
+      inbox_type_supported: @inbox.inbox_type == 'API',
       daily_cap: DAILY_CAP_PER_INBOX,
       rolling_window_hours: ROLLING_WINDOW_HOURS,
       slots_used: slots_used,

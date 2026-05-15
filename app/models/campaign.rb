@@ -88,8 +88,9 @@ class Campaign < ApplicationRecord
       Sms::OneoffSmsCampaignService.new(campaign: self).perform
     when 'Whatsapp'
       Whatsapp::OneoffCampaignService.new(campaign: self).perform if account.feature_enabled?(:whatsapp_campaign)
-    when 'Api'
-      # NODO PATCH 6: Evolution campaigns
+    when 'API'
+      # NODO PATCH 6: Evolution campaigns. Channel::Api#name devuelve 'API' (UPPER),
+      # no 'Api' — ver app/models/channel/api.rb#name. El match tiene que ser exacto.
       Api::OneoffCampaignService.new(campaign: self).perform if account.feature_enabled?(:api_campaign)
     end
   end
@@ -101,16 +102,17 @@ class Campaign < ApplicationRecord
   def validate_campaign_inbox
     return unless inbox
 
-    # NODO PATCH 6: 'Api' (Evolution) sumado al whitelist
-    errors.add :inbox, 'Unsupported Inbox type' unless ['Website', 'Twilio SMS', 'Sms', 'Whatsapp', 'Api'].include? inbox.inbox_type
+    # NODO PATCH 6: 'API' (Evolution / Channel::Api) sumado al whitelist.
+    # IMPORTANTE: usar 'API' (UPPER) — es lo que devuelve Channel::Api#name.
+    errors.add :inbox, 'Unsupported Inbox type' unless ['Website', 'Twilio SMS', 'Sms', 'Whatsapp', 'API'].include? inbox.inbox_type
   end
 
   # TO-DO we clean up with better validations when campaigns evolve into more inboxes
   def ensure_correct_campaign_attributes
     return if inbox.blank?
 
-    # NODO PATCH 6: 'Api' tambien es one_off
-    if ['Twilio SMS', 'Sms', 'Whatsapp', 'Api'].include?(inbox.inbox_type)
+    # NODO PATCH 6: 'API' (Channel::Api) tambien es one_off
+    if ['Twilio SMS', 'Sms', 'Whatsapp', 'API'].include?(inbox.inbox_type)
       self.campaign_type = 'one_off'
       self.scheduled_at ||= Time.now.utc
     else
@@ -121,7 +123,7 @@ class Campaign < ApplicationRecord
 
   # NODO PATCH 6: si es campaign Evolution, validar que el feature flag api_campaign este enabled
   def validate_api_campaign_feature_flag
-    return unless inbox && inbox.inbox_type == 'Api'
+    return unless inbox && inbox.inbox_type == 'API'
     return if account.feature_enabled?(:api_campaign)
 
     errors.add(:base, 'Evolution Campaigns no esta habilitado en esta cuenta. Pedi la activacion como add-on premium.')
@@ -130,7 +132,7 @@ class Campaign < ApplicationRecord
   # NODO PATCH 6: exclusion mutua per-inbox — solo 1 campaign Evolution activa por inbox a la vez.
   # "Activa" = (no completed Y one_off) OR (tiene scheduled_messages pending con campaign_id).
   def validate_api_campaign_exclusivity
-    return unless inbox && inbox.inbox_type == 'Api'
+    return unless inbox && inbox.inbox_type == 'API'
 
     has_unprocessed = Campaign.where(inbox_id: inbox.id, campaign_status: :active, campaign_type: :one_off).where.not(id: id).exists?
     has_dispatching = NodoScheduledMessage.where(inbox_id: inbox.id, status: 'pending').where.not(campaign_id: nil).exists?

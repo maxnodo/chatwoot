@@ -49,7 +49,8 @@ class Api::OneoffCampaignService
   delegate :inbox, :account, to: :campaign
 
   def validate_campaign!
-    raise 'Invalid campaign — not Channel::Api inbox' unless inbox.inbox_type == 'Api'
+    # Channel::Api#name devuelve 'API' (UPPER), no 'Api'.
+    raise 'Invalid campaign — not Channel::Api inbox' unless inbox.inbox_type == 'API'
     raise 'Invalid campaign — not one_off' unless campaign.one_off?
     raise 'Already processed' if campaign.completed?
     raise 'Evolution Campaigns feature not enabled' unless account.feature_enabled?(:api_campaign)
