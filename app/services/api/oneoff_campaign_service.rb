@@ -56,11 +56,45 @@ class Api::OneoffCampaignService
     raise 'Evolution Campaigns feature not enabled' unless account.feature_enabled?(:api_campaign)
   end
 
+  # Chatwoot expone labels en DOS niveles distintos en la UI (con la misma
+  # apariencia visual): aplicadas a un Contact o a una Conversation. Upstream
+  # (Whatsapp::OneoffCampaignService) solo considera Contact labels — eso
+  # confunde al usuario porque taggear "manualmente" desde la conversación
+  # (lo más común en flujos comerciales) no resuelve a un Contact label.
+  #
+  # NODO PATCH 6 considera AMBOS caminos:
+  #   1. Contactos con la label aplicada directamente (contact-level)
+  #   2. Contactos cuya conversación más reciente tiene la label aplicada
+  #
+  # Se hace la UNION via account.contacts.where(id: ...) para devolver una
+  # AR::Relation reutilizable downstream.
   def fetch_audience
     label_titles = extract_audience_labels
     return Contact.none if label_titles.empty?
 
-    account.contacts.tagged_with(label_titles, any: true).where.not(phone_number: [nil, ''])
+    contact_ids_by_contact_label = account.contacts.tagged_with(label_titles, any: true).pluck(:id)
+    contact_ids_by_conv_label    = contacts_via_conversation_labels(label_titles)
+
+    candidate_ids = (contact_ids_by_contact_label + contact_ids_by_conv_label).uniq
+    return Contact.none if candidate_ids.empty?
+
+    account.contacts.where(id: candidate_ids).where.not(phone_number: [nil, ''])
+  end
+
+  # Devuelve los contact_ids de cualquier conversación del account cuyas
+  # labels (via acts_as_taggable_on, context='labels') matcheen los títulos.
+  # Nota: `tags.name` es el lookup canónico — `labels.title` es solo la
+  # representación de UI de Chatwoot.
+  def contacts_via_conversation_labels(label_titles)
+    ActsAsTaggableOn::Tagging
+      .joins('INNER JOIN tags ON tags.id = taggings.tag_id')
+      .joins('INNER JOIN conversations ON conversations.id = taggings.taggable_id')
+      .where(taggable_type: 'Conversation', context: 'labels')
+      .where(conversations: { account_id: account.id })
+      .where('tags.name IN (?)', label_titles)
+      .pluck('conversations.contact_id')
+      .compact
+      .uniq
   end
 
   def extract_audience_labels
