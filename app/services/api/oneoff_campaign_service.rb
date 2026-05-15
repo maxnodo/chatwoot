@@ -136,10 +136,8 @@ class Api::OneoffCampaignService
   end
 
   def create_scheduled_message(contact:, send_at:)
-    contact_inbox = ensure_contact_inbox(contact)
-    return unless contact_inbox
-
-    conversation = ensure_conversation(contact_inbox)
+    conversation = ensure_conversation(contact)
+    return unless conversation
 
     NodoScheduledMessage.create!(
       account_id: account.id,
@@ -167,23 +165,48 @@ class Api::OneoffCampaignService
     Rails.logger.error "[ApiCampaign #{campaign.id}] Failed scheduling for contact #{contact.id}: #{e.class} #{e.message}"
   end
 
+  # Devuelve UN contact_inbox válido para enviar mensajes. Si el contacto ya tiene
+  # varios CIs en el inbox (caso real cuando Evolution generó UUIDs distintos al
+  # crear el contacto la primera vez), preferimos el más reciente — es el que
+  # mejor refleja el estado actual del WhatsApp del contacto.
   def ensure_contact_inbox(contact)
-    ContactInbox.find_or_create_by!(contact_id: contact.id, inbox_id: inbox.id) do |ci|
-      ci.source_id = contact.phone_number
-    end
+    existing = ContactInbox.where(contact_id: contact.id, inbox_id: inbox.id)
+                           .order(created_at: :desc)
+                           .first
+    return existing if existing
+
+    ContactInbox.create!(contact_id: contact.id, inbox_id: inbox.id, source_id: contact.phone_number)
   rescue ActiveRecord::RecordInvalid => e
     Rails.logger.error "[ApiCampaign #{campaign.id}] Skip contact #{contact.id}: #{e.message}"
     nil
   end
 
-  def ensure_conversation(contact_inbox)
-    existing = Conversation.where(contact_inbox_id: contact_inbox.id, inbox_id: inbox.id, account_id: account.id).order(created_at: :desc).first
+  # Reutiliza la conversación existente del contacto en el inbox, o crea una nueva.
+  # IMPORTANTE: buscamos por `contact_id` (no por `contact_inbox_id`) porque
+  # la UI de Chatwoot agrupa por contacto y no por CI. Cuando un contacto tiene
+  # 2 CIs en el mismo inbox (puede pasar si Evolution generó UUIDs distintos),
+  # filtrar por CI puede crear conversaciones "fantasma" — el user ve 2 chats
+  # del mismo contacto cuando esperaba 1.
+  #
+  # Esto respeta el `lock_to_single_conversation` típico de inboxes WhatsApp/
+  # Evolution, donde el usuario espera una sola conversación viva por contacto.
+  def ensure_conversation(contact)
+    # 1. Última conv viva del contacto en este inbox (cualquier CI)
+    existing = Conversation
+               .where(contact_id: contact.id, inbox_id: inbox.id, account_id: account.id)
+               .order(last_activity_at: :desc)
+               .first
+
     return existing if existing
+
+    # 2. No hay conv → asegurar un CI y crear una nueva
+    contact_inbox = ensure_contact_inbox(contact)
+    return nil unless contact_inbox
 
     Conversation.create!(
       account_id: account.id,
       inbox_id: inbox.id,
-      contact_id: contact_inbox.contact_id,
+      contact_id: contact.id,
       contact_inbox_id: contact_inbox.id,
       campaign_id: campaign.id,
       additional_attributes: { initiated_by: 'api_campaign', campaign_id: campaign.id }
