@@ -23,12 +23,22 @@ const addCampaign = async campaignDetails => {
 
     useAlert(t('CAMPAIGN.EVOLUTION.CREATE.FORM.API.SUCCESS_MESSAGE'));
   } catch (error) {
-    // Mensajes friendly cuando el backend rechaza por exclusión mutua o feature flag
+    // Mensajes friendly cuando el backend rechaza por exclusión mutua o feature flag.
+    // Chatwoot usa distintos shapes según el error:
+    //   - RecordInvalid (validations) → { message, attributes }
+    //   - ParameterMissing/otros     → { error }
+    // Si nada de eso viene, dumpeamos el body crudo (truncado) para no ocultar la causa real.
+    const data = error?.response?.data;
     const detail =
-      error?.response?.data?.message ||
-      error?.response?.message ||
+      data?.message ||
+      data?.error ||
+      data?.errors?.join?.(', ') ||
+      (typeof data === 'string' ? data : null) ||
+      (data ? JSON.stringify(data).slice(0, 300) : null) ||
       error?.message;
     useAlert(detail || t('CAMPAIGN.EVOLUTION.CREATE.FORM.API.ERROR_MESSAGE'));
+    // eslint-disable-next-line no-console
+    console.error('[Evolution campaign create] 422 body:', data, 'error:', error);
   }
 };
 
