@@ -27,6 +27,7 @@ hay) y se rebuildea la imagen.
 | 2 | `enterprise/app/services/captain/copilot/chat_service.rb` | (a) El Copilot expone los `captain_custom_tools` del account al modelo (Chatwoot v4.13.0 solo los expone al Captain Assistant, no al Copilot). (b) Inyecta la **fecha y hora actuales** (UTC + Madrid) al contexto del LLM, así herramientas con timestamps (`send_at` de `schedule_message`) no usan el año del training cutoff del modelo (que devuelve fechas de 2023). |
 | 4 | `app/javascript/dashboard/routes/dashboard/conversation/contact/ContactLocalTime.vue` (new) + `ContactInfo.vue` (edit) | Muestra la **hora local actual del contacto** en el panel "Información de contacto", calculada a partir del `country_code` que ya guarda Chatwoot. Resuelve el timezone via `countries-and-timezones` y formatea con `date-fns-tz`. Se refresca cada 30s. Graceful degradation: si no hay country_code seteado, no aparece nada. |
 | 5 | `CustomerVerifiedBadge.vue` (new) + `ContactInfo.vue` (edit) + `components-next/Conversation/ConversationCard/ConversationCard.vue` (edit 5b) + `components/widgets/conversation/ConversationCard.vue` (edit 5b legacy) | **Insignia ✓ azul "Cliente verificado"** al lado del nombre del contacto cuando `custom_attributes.etapa_comercial === 'Cierre'`. Aparece en (a) panel "Información de contacto", (b) bandeja de entrada principal (`ConversationCard` legacy) y (c) historial de conversaciones del contacto (`ConversationCard` next). El "legacy" se usa en la bandeja principal y trae el contacto via `store.getters['contacts/getContact']` (full shape con `custom_attributes`). El "next" se usa en sidebar contextual y recibe `contact` via prop. Acompañado de 7 Custom Attributes nativos creados en la cuenta (ver sección "Tab Comercial — Nivel B" más abajo) que conforman un mini-CRM dentro de Chatwoot **sin necesidad de tablas/UI custom**. Estética tipo Twitter/X verified. |
+| 6 | `config/features.yml` (entry `api_campaign`) + `app/models/campaign.rb` (whitelist + dispatcher + validations) + `app/models/nodo_scheduled_message.rb` (new) + `app/services/api/oneoff_campaign_service.rb` (new) + `app/controllers/api/v1/accounts/inboxes/api_campaign_quotas_controller.rb` (new) + `config/routes.rb` (edit) | **Campañas para Channel::Api (Evolution)** — backend completo. Cap 200/24h rolling window por inbox, delay aleatorio 3-20s entre mensajes, spread automático si la audiencia excede 200 (la misma campaign se distribuye en N ventanas de 24h), exclusión mutua per-inbox (solo 1 campaign Evolution activa por inbox), soporte de imagen opcional vía URL pública. Activable como **add-on premium** desde el panel `/super_admin/accounts/:id/edit` (checkbox "Evolution Campaigns" en sección Premium Features). Frontend dedicado pendiente (clone de WhatsApp Cloud Campaigns + dialog adaptado sin templates). Ver sección "Patch 6 — Campañas Channel::Api" más abajo. |
 
 ---
 
@@ -332,3 +333,95 @@ WHERE account_id = 1
 - **Sin auto-creación de oportunidad**: el agent completa los attributes manualmente.
 
 Cuando estos límites se vuelvan problemáticos en la práctica, escalamos a Nivel C/D.
+
+---
+
+## Patch 6 — Campañas Channel::Api (Evolution)
+
+Add-on premium que permite enviar campañas masivas (one-off) a contactos
+filtrados por labels desde inboxes Evolution (`Channel::Api`). Reusa la
+infra de `nodo_scheduled_messages` (Patch 2 / Captain Copilot) para el
+throttling.
+
+### Reglas de negocio
+
+| Regla | Valor |
+|---|---|
+| Cap de envío | **200 mensajes / 24h por inbox** (rolling window) |
+| Delay entre mensajes | Aleatorio entre **3 y 20 segundos** |
+| Audiencia > 200 | **Spread automático** dentro de la misma campaign (los excedentes se programan al siguiente bucket de 24h, y así sucesivamente) |
+| Exclusión mutua | **Solo 1 campaign Evolution activa por inbox a la vez**. Otros inboxes (Evolution o de otros canales) NO se ven afectados. |
+| Imagen | Opcional, **vía URL pública** en `campaign.template_params['attachment_url']`. Sin upload (v2). |
+| Cancelación | Sí — cancelar la campaign marca todos los `nodo_scheduled_messages` pending como `cancelled` |
+| Variabilidad de contenido | No (todos reciben el mismo `campaign.message`). Placeholders en v2 si se piden. |
+
+### Activación como add-on premium
+
+El feature flag `api_campaign` está marcado como `premium: true` en
+`config/features.yml`. Aparece automáticamente como **checkbox en el panel
+de Super Admin de Chatwoot** (`/super_admin/accounts/:id/edit` → sección
+"Premium Features").
+
+**Workflow operativo cuando un cliente Nodo paga el addon:**
+
+1. Vos (super admin) entrás a `https://go.otronodo.com/super_admin/accounts/X/edit`
+2. Scroll a "Premium Features" → marcar checkbox **"Evolution Campaigns"**
+3. Save (~10 segundos total)
+4. El cliente recarga su Chatwoot → ve el tab "Evolution" en `/campaigns`
+
+Para desactivar: desmarcar el checkbox. El tab desaparece y el backend
+rechaza nuevas campaigns. Las que están en curso siguen ejecutándose
+(comportamiento sensato).
+
+### Flow técnico
+
+```
+1. Agent crea Campaign en UI Chatwoot (tab Evolution)
+   - Inbox: Channel::Api (Evolution)
+   - Audience: labels seleccionadas
+   - Mensaje + URL imagen (opcional) + scheduled_at
+       ↓
+2. Campaign#trigger! ejecuta Api::OneoffCampaignService.perform
+   - Valida feature flag + tipo inbox + completed
+   - Lee audiencia por labels (any: true)
+   - Calcula slots usados en rolling 24h del inbox
+   - Para cada contacto, calcula send_at con delay 3-20s
+   - Si pasa el cap del bucket actual, salta al siguiente bucket
+     (cursor += 24h, bucket_count = 0)
+   - Crea row en nodo_scheduled_messages con campaign_id
+   - Marca campaign.completed!
+       ↓
+3. Cron EF `dispatch-scheduled-messages` (cada 60s)
+   - SELECT pending WHERE send_at <= now()
+   - Despacha vía Evolution API (sendText o sendMedia si attachment_url)
+   - Marca status = sent
+```
+
+### Endpoint de quota (frontend)
+
+`GET /api/v1/accounts/:account_id/inboxes/:inbox_id/api_campaign_quota`
+
+```json
+{
+  "feature_enabled": true,
+  "inbox_type_supported": true,
+  "daily_cap": 200,
+  "rolling_window_hours": 24,
+  "slots_used": 120,
+  "slots_available": 80,
+  "next_slot_available_at": null,
+  "active_campaign": null
+}
+```
+
+El frontend lo poll cada 30s para mostrar:
+- "Te quedan 80 mensajes en las próximas 24h"
+- Botón "Nueva campaña" deshabilitado si `active_campaign` no es null
+
+### Limitaciones conocidas (MVP)
+
+- ❌ Sin upload de archivo (solo URL pública para imágenes)
+- ❌ Sin placeholders en el mensaje (`{{contact.name}}`)
+- ❌ Sin múltiples archivos por campaign (1 imagen opcional)
+- ❌ Sin scheduling repetitivo (cada lunes 9am)
+- ❌ Sin A/B testing de mensajes
