@@ -55,7 +55,10 @@ const httpsOnly = value => !value || /^https:\/\//i.test(value);
 
 const rules = {
   title: { required, minLength: minLength(1) },
-  message: { required, minLength: minLength(1) },
+  // 4000 chars matchea con el límite que valida la EF schedule-message y deja
+  // margen sobre el límite hard de WhatsApp (4096). El TextArea HTML enforza
+  // 4000 inline, este Vuelidate lo respalda si llegara contenido pegado.
+  message: { required, minLength: minLength(1), maxLength: maxLength(4000) },
   inboxId: { required },
   scheduledAt: { required },
   selectedAudience: { required },
@@ -211,6 +214,7 @@ const handleSubmit = async () => {
       :label="t('CAMPAIGN.EVOLUTION.CREATE.FORM.MESSAGE.LABEL')"
       :placeholder="t('CAMPAIGN.EVOLUTION.CREATE.FORM.MESSAGE.PLACEHOLDER')"
       show-character-count
+      :max-length="4000"
       :message="formErrors.message"
       :message-type="formErrors.message ? 'error' : 'info'"
     />
