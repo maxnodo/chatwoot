@@ -233,7 +233,8 @@
           },
           "MESSAGE": {
             "LABEL": "Mensaje",
-            "PLACEHOLDER": "Texto que va a recibir cada contacto. Variables opcionales: {{nombre}}, {{nombre_completo}}, {{empresa}}, {{email}}, {{telefono}}",
+            "PLACEHOLDER": "Texto que va a recibir cada contacto…",
+            "HINT": "Variables opcionales (envolvé el nombre en dobles llaves): nombre, nombre_completo, empresa, email, telefono",
             "ERROR": "El mensaje es obligatorio"
           },
           "ATTACHMENT_URL": {
