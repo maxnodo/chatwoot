@@ -144,7 +144,7 @@ class Api::OneoffCampaignService
       inbox_id: inbox.id,
       conversation_id: conversation.id,
       conversation_display_id: conversation.display_id,
-      content: campaign.message,
+      content: render_message(campaign.message, contact),
       send_at: send_at,
       status: 'pending',
       scheduled_by_user_id: campaign.sender_id,
@@ -211,6 +211,54 @@ class Api::OneoffCampaignService
       campaign_id: campaign.id,
       additional_attributes: { initiated_by: 'api_campaign', campaign_id: campaign.id }
     )
+  end
+
+  # NODO PATCH 6.1: Variables por contacto en el mensaje de la campaign.
+  #
+  # Permite que el `campaign.message` tenga placeholders tipo {{nombre}} que
+  # se reemplazan por datos del contact al momento de crear cada
+  # nodo_scheduled_message. Resultado: cada destinatario recibe un mensaje
+  # único → distinto hash → Meta lo clasifica menos como "broadcast".
+  #
+  # Las variables son **opcionales**: si el template no las contiene, el
+  # método es no-op y devuelve el string tal cual. Si una variable referencia
+  # un campo que el contact tiene vacío, se usa un fallback sensato (ver
+  # PLACEHOLDER_FALLBACKS abajo).
+  #
+  # Lookup canonico de cada placeholder está en PLACEHOLDER_RESOLVERS. Cada
+  # entry es un lambda que recibe el contact y devuelve el valor o nil; si
+  # devuelve nil/blank, se cae al fallback.
+  PLACEHOLDER_RESOLVERS = {
+    'nombre'           => ->(c) { c.name.to_s.strip.split(/\s+/).first },
+    'nombre_completo'  => ->(c) { c.name.to_s.strip },
+    'empresa'          => ->(c) { c.additional_attributes.is_a?(Hash) ? c.additional_attributes['company_name'].to_s.strip : nil },
+    'email'            => ->(c) { c.email.to_s.strip },
+    'telefono'         => ->(c) { c.phone_number.to_s.strip }
+  }.freeze
+
+  PLACEHOLDER_FALLBACKS = {
+    'nombre'          => 'amigo/a',
+    'nombre_completo' => 'amigo/a',
+    'empresa'         => 'tu empresa',
+    'email'           => '',
+    'telefono'        => ''
+  }.freeze
+
+  # IMPORTANTE: orden DESC por longitud para que el regex pruebe primero las
+  # alternativas más largas (PCRE alternation es leftmost-first, no longest).
+  # Sin esto, `{{nombre_completo}}` matchea como `{{nombre` + `_completo}}` literal.
+  PLACEHOLDER_PATTERN = /\{\{\s*(#{PLACEHOLDER_RESOLVERS.keys.sort_by { |k| -k.length }.map { |k| Regexp.escape(k) }.join('|')})\s*\}\}/.freeze
+
+  def render_message(template, contact)
+    return template.to_s if template.to_s.empty?
+    return template unless template.include?('{{')
+
+    template.gsub(PLACEHOLDER_PATTERN) do
+      key = Regexp.last_match(1)
+      resolver = PLACEHOLDER_RESOLVERS[key]
+      value = resolver&.call(contact)
+      value.present? ? value : PLACEHOLDER_FALLBACKS.fetch(key, '')
+    end
   end
 
   def attachment_url_from_campaign
