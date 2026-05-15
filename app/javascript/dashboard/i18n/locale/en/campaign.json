@@ -211,6 +211,61 @@
         "SUCCESS_MESSAGE": "Campaign deleted successfully",
         "ERROR_MESSAGE": "There was an error. Please try again."
       }
+    },
+    "EVOLUTION": {
+      "HEADER_TITLE": "Evolution Campaigns",
+      "NEW_CAMPAIGN": "New campaign",
+      "EMPTY_STATE": {
+        "TITLE": "No Evolution campaigns yet",
+        "SUBTITLE": "Launch a campaign over WhatsApp Evolution. Free text, optional image via URL, cap 200/24h per inbox. Click 'New campaign' to start."
+      },
+      "QUOTA": {
+        "AVAILABLE": "You have {available} messages left in the next 24h ({used}/{cap} used).",
+        "ACTIVE_CAMPAIGN": "There is already an active campaign in this inbox: '{title}' ({pending} pending). Wait for it to finish before creating another."
+      },
+      "CREATE": {
+        "TITLE": "New Evolution campaign",
+        "FORM": {
+          "TITLE": {
+            "LABEL": "Title",
+            "PLACEHOLDER": "e.g. May 2026 Promo",
+            "ERROR": "Title is required"
+          },
+          "MESSAGE": {
+            "LABEL": "Message",
+            "PLACEHOLDER": "Text every contact will receive…",
+            "ERROR": "Message is required"
+          },
+          "ATTACHMENT_URL": {
+            "LABEL": "Image URL (optional)",
+            "PLACEHOLDER": "https://… (public image)",
+            "ERROR": "Must be a valid https:// URL (max 2000 chars)"
+          },
+          "INBOX": {
+            "LABEL": "Evolution inbox",
+            "PLACEHOLDER": "Select an inbox",
+            "ERROR": "Inbox is required"
+          },
+          "AUDIENCE": {
+            "LABEL": "Audience (labels)",
+            "PLACEHOLDER": "Select the labels",
+            "ERROR": "Audience is required"
+          },
+          "SCHEDULED_AT": {
+            "LABEL": "Schedule",
+            "PLACEHOLDER": "Select date and time",
+            "ERROR": "Scheduled time is required"
+          },
+          "BUTTONS": {
+            "CREATE": "Create",
+            "CANCEL": "Cancel"
+          },
+          "API": {
+            "SUCCESS_MESSAGE": "Evolution campaign created successfully",
+            "ERROR_MESSAGE": "There was an error. Please try again."
+          }
+        }
+      }
     }
   }
 }
