@@ -215,7 +215,7 @@ const handleSubmit = async () => {
       :placeholder="t('CAMPAIGN.EVOLUTION.CREATE.FORM.MESSAGE.PLACEHOLDER')"
       show-character-count
       :max-length="4000"
-      :message="formErrors.message"
+      :message="formErrors.message || t('CAMPAIGN.EVOLUTION.CREATE.FORM.MESSAGE.HINT')"
       :message-type="formErrors.message ? 'error' : 'info'"
     />
 
