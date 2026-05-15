@@ -585,6 +585,12 @@ const menuItems = computed(() => {
           label: t('SIDEBAR.WHATSAPP'),
           to: accountScopedRoute('campaigns_whatsapp_index'),
         },
+        // NODO PATCH 6: item Evolution en submenu de Campañas
+        {
+          name: 'Evolution',
+          label: t('SIDEBAR.EVOLUTION'),
+          to: accountScopedRoute('campaigns_evolution_index'),
+        },
       ],
     },
     {

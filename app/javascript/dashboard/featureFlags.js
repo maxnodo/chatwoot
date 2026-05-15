@@ -7,6 +7,8 @@ export const FEATURE_FLAGS = {
   AUTOMATIONS: 'automations',
   CAMPAIGNS: 'campaigns',
   WHATSAPP_CAMPAIGNS: 'whatsapp_campaign',
+  // NODO PATCH 6: campañas para Channel::Api (Evolution)
+  API_CAMPAIGNS: 'api_campaign',
   CANNED_RESPONSES: 'canned_responses',
   CRM: 'crm',
   CUSTOM_ATTRIBUTES: 'custom_attributes',
@@ -59,4 +61,6 @@ export const PREMIUM_FEATURES = [
   FEATURE_FLAGS.SAML,
   FEATURE_FLAGS.CONVERSATION_REQUIRED_ATTRIBUTES,
   FEATURE_FLAGS.ADVANCED_ASSIGNMENT,
+  // NODO PATCH 6: marca api_campaign como premium (add-on)
+  FEATURE_FLAGS.API_CAMPAIGNS,
 ];

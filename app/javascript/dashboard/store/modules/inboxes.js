@@ -154,6 +154,12 @@ export const getters = {
       item => item.channel_type === INBOX_TYPES.WHATSAPP
     );
   },
+  // NODO PATCH 6: inboxes Channel::Api (Evolution) para tab de Campañas Evolution
+  getApiInboxes($state) {
+    return $state.records.filter(
+      item => item.channel_type === INBOX_TYPES.API
+    );
+  },
   dialogFlowEnabledInboxes($state) {
     return $state.records.filter(
       item => item.channel_type !== INBOX_TYPES.EMAIL
