@@ -27,7 +27,7 @@ hay) y se rebuildea la imagen.
 | 2 | `enterprise/app/services/captain/copilot/chat_service.rb` | (a) El Copilot expone los `captain_custom_tools` del account al modelo (Chatwoot v4.13.0 solo los expone al Captain Assistant, no al Copilot). (b) Inyecta la **fecha y hora actuales** (UTC + Madrid) al contexto del LLM, así herramientas con timestamps (`send_at` de `schedule_message`) no usan el año del training cutoff del modelo (que devuelve fechas de 2023). |
 | 4 | `app/javascript/dashboard/routes/dashboard/conversation/contact/ContactLocalTime.vue` (new) + `ContactInfo.vue` (edit) | Muestra la **hora local actual del contacto** en el panel "Información de contacto", calculada a partir del `country_code` que ya guarda Chatwoot. Resuelve el timezone via `countries-and-timezones` y formatea con `date-fns-tz`. Se refresca cada 30s. Graceful degradation: si no hay country_code seteado, no aparece nada. |
 | 5 | `CustomerVerifiedBadge.vue` (new) + `ContactInfo.vue` (edit) + `components-next/Conversation/ConversationCard/ConversationCard.vue` (edit 5b) + `components/widgets/conversation/ConversationCard.vue` (edit 5b legacy) | **Insignia ✓ azul "Cliente verificado"** al lado del nombre del contacto cuando `custom_attributes.etapa_comercial === 'Cierre'`. Aparece en (a) panel "Información de contacto", (b) bandeja de entrada principal (`ConversationCard` legacy) y (c) historial de conversaciones del contacto (`ConversationCard` next). El "legacy" se usa en la bandeja principal y trae el contacto via `store.getters['contacts/getContact']` (full shape con `custom_attributes`). El "next" se usa en sidebar contextual y recibe `contact` via prop. Acompañado de 7 Custom Attributes nativos creados en la cuenta (ver sección "Tab Comercial — Nivel B" más abajo) que conforman un mini-CRM dentro de Chatwoot **sin necesidad de tablas/UI custom**. Estética tipo Twitter/X verified. |
-| 6 | `config/features.yml` (entry `api_campaign`) + `app/models/campaign.rb` (whitelist + dispatcher + validations) + `app/models/nodo_scheduled_message.rb` (new) + `app/services/api/oneoff_campaign_service.rb` (new) + `app/controllers/api/v1/accounts/inboxes/api_campaign_quotas_controller.rb` (new) + `config/routes.rb` (edit) | **Campañas para Channel::Api (Evolution)** — backend completo. Cap 200/24h rolling window por inbox, delay aleatorio 3-20s entre mensajes, spread automático si la audiencia excede 200 (la misma campaign se distribuye en N ventanas de 24h), exclusión mutua per-inbox (solo 1 campaign Evolution activa por inbox), soporte de imagen opcional vía URL pública. Activable como **add-on premium** desde el panel `/super_admin/accounts/:id/edit` (checkbox "Evolution Campaigns" en sección Premium Features). Frontend dedicado pendiente (clone de WhatsApp Cloud Campaigns + dialog adaptado sin templates). Ver sección "Patch 6 — Campañas Channel::Api" más abajo. |
+| 6 | **Backend:** `config/features.yml` (entry `api_campaign`) + `app/models/campaign.rb` (whitelist + dispatcher + validations) + `app/models/nodo_scheduled_message.rb` (new) + `app/services/api/oneoff_campaign_service.rb` (new) + `app/controllers/api/v1/accounts/inboxes/api_campaign_quotas_controller.rb` (new) + `config/routes.rb` (edit). **Frontend:** `app/javascript/dashboard/featureFlags.js` + `routes/dashboard/campaigns/campaigns.routes.js` + `components-next/sidebar/Sidebar.vue` + `store/modules/{campaigns,inboxes}.js` + 4 componentes Vue nuevos en `components-next/Campaigns/.../EvolutionCampaign/` + `routes/.../pages/EvolutionCampaignsPage.vue` + `i18n/locale/{es,en}/{campaign,settings}.json`. **EFs:** `schedule-message` v7 (acepta `attachment_url` + `campaign_id`) + `dispatch-scheduled-messages` v2 (descarga imagen y la sube multipart a Chatwoot). | **Campañas para Channel::Api (Evolution)** — backend + frontend + EFs completo. Cap 200/24h rolling window por inbox, delay aleatorio 3-20s entre mensajes, spread automático si la audiencia excede 200 (la misma campaign se distribuye en N ventanas de 24h), exclusión mutua per-inbox (solo 1 campaign Evolution activa por inbox), soporte de imagen opcional vía URL pública. Tab dedicado "Evolution" en sidebar de Campañas, form sin templates con campo `attachment_url`, indicador de quota en tiempo real (poll cada 30s) que bloquea el submit si ya hay una campaign activa. Activable como **add-on premium** desde el panel `/super_admin/accounts/:id/edit` (checkbox "Evolution Campaigns" en sección Premium Features). Ver sección "Patch 6 — Campañas Channel::Api" más abajo. |
 
 ---
 
@@ -372,6 +372,27 @@ de Super Admin de Chatwoot** (`/super_admin/accounts/:id/edit` → sección
 Para desactivar: desmarcar el checkbox. El tab desaparece y el backend
 rechaza nuevas campaigns. Las que están en curso siguen ejecutándose
 (comportamiento sensato).
+
+**Alternativa por Rails console** (si el checkbox no aparece en el panel
+de Super Admin — p.ej. el server aún no reinició tras agregar la entry a
+`features.yml`):
+
+```bash
+# Desde el host con docker, o EasyPanel terminal del container chatwoot:
+docker exec -it chatwoot bundle exec rails runner \
+  "Account.find(X).enable_features!('api_campaign')"
+
+# Verificar:
+docker exec -it chatwoot bundle exec rails runner \
+  "puts Account.find(X).feature_enabled?('api_campaign')"
+# => true
+```
+
+Chatwoot usa la gem **FlagShihTzu** sobre la columna `accounts.feature_flags`
+(bigint bitmask), así que el método `enable_features!` (bang) ya calcula el
+bit correcto y persiste. No tocar la columna a mano con SQL — el orden de
+los bits depende del orden en que se definen los flags en el modelo y
+podés romper otros flags si calculás mal.
 
 ### Flow técnico
 
