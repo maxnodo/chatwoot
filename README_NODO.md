@@ -443,10 +443,55 @@ El frontend lo poll cada 30s para mostrar:
 - "Te quedan 80 mensajes en las próximas 24h"
 - Botón "Nueva campaña" deshabilitado si `active_campaign` no es null
 
+### Variables por contacto (Patch 6.1)
+
+Para reducir el fingerprinting que hace Meta sobre mensajes idénticos
+enviados a muchos contactos, el `campaign.message` admite placeholders
+que se reemplazan **por contacto** al momento de crear cada
+`nodo_scheduled_messages`. Resultado: cada destinatario recibe un
+mensaje con hash distinto → parece interacción individual, no broadcast.
+
+Las variables son **opcionales** — si el mensaje no contiene `{{...}}`,
+el render es no-op y el mensaje sale tal cual a todos (comportamiento
+pre-Patch 6.1).
+
+| Placeholder | Source | Fallback si vacío |
+|---|---|---|
+| `{{nombre}}` | Primer token de `contacts.name` (split por espacio) | `amigo/a` |
+| `{{nombre_completo}}` | `contacts.name` | `amigo/a` |
+| `{{empresa}}` | `contacts.additional_attributes['company_name']` | `tu empresa` |
+| `{{email}}` | `contacts.email` | `""` |
+| `{{telefono}}` | `contacts.phone_number` | `""` |
+
+**Ejemplo:**
+```
+Hola {{nombre}} 👋
+🚀 Nueva función disponible en el CRM para {{empresa}}.
+```
+A Tomas (`name="Tomas Tabares"`, sin `company_name`):
+> Hola Tomas 👋
+> 🚀 Nueva función disponible en el CRM para tu empresa.
+
+A Juanpe (`name="Juanpe Vázquez"`, `company_name="Acme SRL"`):
+> Hola Juanpe 👋
+> 🚀 Nueva función disponible en el CRM para Acme SRL.
+
+**Detalles de implementación:**
+- El render ocurre en `Api::OneoffCampaignService#render_message` antes
+  del INSERT en `nodo_scheduled_messages`. Cada row guarda el content
+  ya rendereado (auditoría completa de qué se envió a cada uno).
+- Placeholders no soportados (ej. `{{xxx}}` con typo) quedan literales
+  — responsabilidad del usuario revisar antes de programar.
+- El regex respeta el orden DESC por longitud para evitar matches
+  parciales (`{{nombre_completo}}` ≠ `{{nombre}} + _completo}}`).
+- Para agregar variables nuevas: editar `PLACEHOLDER_RESOLVERS` y
+  `PLACEHOLDER_FALLBACKS` en el service (1 entrada cada una). La regex
+  se recompila automáticamente.
+
 ### Limitaciones conocidas (MVP)
 
 - ❌ Sin upload de archivo (solo URL pública para imágenes)
-- ❌ Sin placeholders en el mensaje (`{{contact.name}}`)
 - ❌ Sin múltiples archivos por campaign (1 imagen opcional)
 - ❌ Sin scheduling repetitivo (cada lunes 9am)
 - ❌ Sin A/B testing de mensajes
+- ❌ Sin custom_attributes en placeholders (v6.2 cuando confirmen flujos)
