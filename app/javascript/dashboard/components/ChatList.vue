@@ -1,5 +1,14 @@
 <script setup>
-import { ref, unref, provide, computed, watch, onMounted } from 'vue';
+import {
+  ref,
+  unref,
+  provide,
+  computed,
+  watch,
+  onMounted,
+  // NODO PATCH 7: necesario para cleanup del setInterval del polling
+  onBeforeUnmount,
+} from 'vue';
 import { useStore } from 'vuex';
 import { useRoute, useRouter } from 'vue-router';
 import {
@@ -793,6 +802,22 @@ onMounted(() => {
   resetAndFetchData();
   if (hasActiveFolders.value) {
     store.dispatch('campaigns/get');
+  }
+  // NODO PATCH 7: cargar resumen de mensajes programados (para el indicador
+  // en cada ConversationCard) + refresh cada 60s mientras la bandeja esté
+  // abierta. Cleanup en onBeforeUnmount más abajo.
+  store.dispatch('scheduledMessages/fetchSummary');
+  scheduledSummaryTimer = setInterval(() => {
+    store.dispatch('scheduledMessages/fetchSummary');
+  }, 60_000);
+});
+
+// NODO PATCH 7: handle del setInterval para cleanup
+let scheduledSummaryTimer = null;
+onBeforeUnmount(() => {
+  if (scheduledSummaryTimer) {
+    clearInterval(scheduledSummaryTimer);
+    scheduledSummaryTimer = null;
   }
 });
 
