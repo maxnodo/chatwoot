@@ -64,9 +64,9 @@ const tooltip = computed(() => {
   <span
     v-if="hasScheduled"
     :title="tooltip"
-    class="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-full text-xxs font-medium leading-4 text-n-violet-11 bg-n-violet-3 dark:bg-n-violet-3 dark:text-n-violet-11"
+    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold leading-4 text-white bg-n-violet-9 dark:bg-n-violet-9 ring-1 ring-n-violet-11/30 align-middle"
   >
-    <fluent-icon :icon="icon" size="11" class="-mt-px" />
+    <fluent-icon :icon="icon" size="14" />
     <span>{{ count }}</span>
   </span>
 </template>
