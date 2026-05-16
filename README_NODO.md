@@ -223,6 +223,10 @@ Anotados acá para futuros mantenedores (el `schedule_message` involucra 3 capas
 | 9 | Patch 6 — `Api::OneoffCampaignService#fetch_audience` | Campaign Evolution se procesaba a `completed` pero **0 mensajes enviados** aunque la audiencia (label "suscriptor") era claramente correcta en la UI — el chip violeta aparecía al lado del contacto Tomas. UX engañosa: el card de la campaign dice "Completado" sin distinguir 0 vs N envíos. | En Chatwoot, una "etiqueta" puede vivir en DOS niveles distintos con apariencia visual idéntica: como `taggings.taggable_type='Contact'` (Contact label) o `'Conversation'` (Conversation label). El upstream `Whatsapp::OneoffCampaignService` solo considera Contact labels (`account.contacts.tagged_with(...)`), y Patch 6 originalmente heredaba ese comportamiento. El user razonablemente etiqueta desde la **conversación** (lo más común en flujos comerciales: abrís la conv, le ponés un label, listo) — eso genera tagging de Conversation, no de Contact → fetch_audience devolvía 0. Además, las taggings apuntan a `tags.id` (gema acts_as_taggable_on), NO a `labels.id` (tabla custom de Chatwoot solo para UI): el lookup canónico es `tags.name`. | `fetch_audience` ahora hace UNION de los 2 caminos: (1) `account.contacts.tagged_with(label_titles, any: true)` (contact-level) + (2) join manual via `ActsAsTaggableOn::Tagging` sobre `conversations.contact_id` filtrando por `taggable_type='Conversation', context='labels'`, `tags.name IN (...)`. Validado E2E el 2026-05-15: campaign 5 con label "suscriptor" en conversación de Tomas → 1 nodo_scheduled_message creado → dispatch a Evolution OK en 63s end-to-end. |
 | 10 | Patch 6 — `EvolutionCampaignForm.vue` | El mensaje de la campaign llegaba truncado al receptor: contenido escrito de 250+ chars en el form aparecía en `campaigns.message` y en el WhatsApp del receptor solo con los primeros 198 chars (cortado mid-word: "...contac"). Las 3 capas (campaigns, nodo_scheduled_messages, messages) mostraban exactamente `LENGTH=198`, confirmando que el truncado ocurría **en el browser al escribir**, no en el pipeline. | El componente `<TextArea>` de Chatwoot tiene `maxLength` con `default: 200` y aplica `:maxlength="maxLength"` al HTML textarea solo cuando `show-character-count` está activado. Mi form usaba `show-character-count` sin override de `maxLength` → el browser truncaba silenciosamente al pegar/escribir más de 200 chars. El counter del UI mostraba "X / 200" como si fuera el límite válido — sin error visible, el user no se daba cuenta. | Pasar `:max-length="4000"` explícito al `<TextArea>` (matchea el límite que valida la EF `schedule-message` y queda holgado vs los 4096 chars hard de WhatsApp). Sumar también `maxLength: maxLength(4000)` en Vuelidate como defensa en profundidad: si el user pega contenido >4000, ve un error visible en lugar de truncado silente. Pattern: **siempre revisar los props default de componentes compartidos antes de usarlos** (especialmente los que afectan input — TextArea, Input, Combobox). |
 | 11 | Patch 6 — `Api::OneoffCampaignService#ensure_conversation` | Tras enviar campaign a Tomas (1 solo destinatario), la UI quedó con 2 conversaciones distintas del mismo contacto en el mismo inbox: la histórica con label "suscriptor" + una nueva creada por la campaign. El inbox tiene `lock_to_single_conversation: true`, así que el usuario espera 1 conv viva por contacto. | Tomas tenía **2 `contact_inboxes`** en inbox 17 (Evolution generó UUIDs distintos al crear el contacto, con ~2s de diferencia: ci.id=152 sin convs + ci.id=153 con la conv 369 histórica). Mi `ensure_contact_inbox` usaba `find_or_create_by(contact_id, inbox_id)` → devolvió ci.id=152 (orden ASC por defecto). Luego `ensure_conversation` buscaba conv por `contact_inbox_id=152` → no encontró → creó conv 401 nueva, dejando la 369 huérfana. La UI agrupa por **contact**, no por CI, así que el user ve 2 chats fantasma del mismo Tomas. | (1) `ensure_conversation` ahora busca por `contact_id + inbox_id` (NO por CI), ordenando por `last_activity_at DESC`. Reutiliza la conv más reciente del contacto sin importar qué CI tenga apuntada. (2) `ensure_contact_inbox` prefiere el CI más reciente cuando hay varios (refleja mejor el estado actual del WhatsApp). Esto respeta el spirit de `Inbox#lock_to_single_conversation`. Limitación: convs fantasma pre-existentes (creadas antes del fix) no se "auto-curan" — el user tiene que marcar la conv duplicada como `Resolved` desde la UI. |
+| 12 | Patch 6.1 — `EvolutionCampaignForm.vue` i18n PLACEHOLDER | Al hacer click en "Crear campaña Evolution" tras Patch 6.1, el dialog mostraba solo el título y el formulario **no aparecía**. La consola del browser no mostraba errores claros — el componente Vue se quedaba colgado al renderear. | Vue I18n v9 interpreta `{{nombre}}` literal como tokens de interpolación de variables nombradas. Yo puse el placeholder del TextArea con `"Variables opcionales: {{nombre}}, {{empresa}}..."` para que el user descubra las variables — Vue I18n intentó resolver `nombre` como un parámetro, no lo encontró y **lanzó una excepción que crasheaba el componente que usaba esa key**. | (1) Restaurar el PLACEHOLDER del TextArea al texto simple sin `{{...}}`. (2) Sumar key nueva `MESSAGE.HINT` con las variables descritas **en prosa** ("envolvé el nombre en dobles llaves"). (3) Mostrar el HINT debajo del TextArea via la prop `message` cuando no hay error. Pattern: **nunca usar `{{` literal en strings que pasen por `t(...)` de vue-i18n** — interpreta como template de interpolación. |
+| 13 | Patch 7 — `api/scheduledMessages.js` | El indicador y banner del Patch 7 nunca aparecían en la UI aunque la data estaba en DB. Conectándome al browser via MCP vi en consola: `[scheduledMessages] fetchSummary failed: Cannot read properties of undefined (reading 'get')`. 0 requests a `/scheduled_messages` en la pestaña Network. | El `ApiClient` base de Chatwoot usa `axios` **global** (declarado con `/* global axios */` arriba del archivo y referenciado como `axios.get(...)`). NO expone `this.axios`. Mis 3 métodos custom (`getSummary`, `getForConversation`, `cancel`) usaban `this.axios.get(...)` → undefined → la promise se rejecteaba silente → store quedaba con `summary: {}` → ni el indicador ni el banner se renderizaban. | Agregar `/* global axios */` arriba de `api/scheduledMessages.js` + reemplazar `this.axios.X` por `axios.X` directo. Patrón ya usado en otros API clients de Chatwoot (`accountActions`, `agentBots`, `CacheEnabledApiClient`). Pattern: **mirar archivos `api/*.js` ya existentes antes de extender ApiClient con métodos custom**. |
+| 14 | Patch 7 — `ScheduledMessagesController#summary` | Tras fix bug 13, el endpoint devolvía los 6 conversation_ids correctos pero **el indicador seguía sin aparecer en la bandeja**. Inspeccionando el store via MCP: `summary` tenía keys `[353, 354, 356, ...]` (números altos), pero `chat.id` del Vuex era `[349, 350, 352, ...]` (números más bajos). | Mi endpoint devolvía un map keyed por `conversations.id` (PK real). Pero la API de Chatwoot expone los chats en el frontend con `id` = **`display_id`** (id virtual account-scoped). `ConversationCard` pasa `chat.id` (display_id) al indicador → el getter no encontraba match → `summary?.total = undefined` → no render. **Para 1 cuenta sola los IDs son cercanos, pero pueden divergir bastante en cuentas con muchos rows borrados.** | Cambiar la query a JOIN con `conversations` y `pluck('conversations.display_id', ...)` como key. Single query, indexada por PK. El endpoint `/index` ya era OK porque hacía `find_by(display_id) OR find_by(id)`. Pattern: **cuando expongas conversation_id al frontend, siempre pasá `display_id`, no la PK** — Chatwoot oculta la PK real intencionalmente en sus serializers. |
+| 15 | Patch 7 — `ScheduledMessagesIndicator.vue` (visibilidad) | Tras fix bugs 13 + 14, el chip indicator **sí se montaba en el DOM** (verificado con `getBoundingClientRect: 16x16px, color violet-11, bg violet-3`) pero **el user no lo veía visualmente**. El user reportó "no se implementó". | El chip estaba en el stack vertical derecho del card, debajo del badge unread teal, con `text-xxs` y bg-violet-3 (casi blanco) sobre fondo del card. Visualmente imperceptible — el ojo iba al badge teal de unread y se perdía el chip violeta diminuto. | (1) Reposicionar: del stack derecho → **al lado del nombre del contacto** en el `h4` (junto a la insignia "Cliente verificado" del Patch 5b). Posición natural, siempre en line of sight. (2) Más grande: `text-xs` (no `xxs`), padding `px-2 py-0.5`, icon 14px. (3) Después polish: `text-xs font-normal` afuera + chip violet-3 con label completo `"1 programado"` + separador `· en 2d` (countdown). Pattern: **siempre validar visualmente con un screenshot real**, no asumir que está OK porque el HTML está presente. |
 
 ---
 
@@ -497,3 +501,96 @@ A Juanpe (`name="Juanpe Vázquez"`, `company_name="Acme SRL"`):
 - ❌ Sin scheduling repetitivo (cada lunes 9am)
 - ❌ Sin A/B testing de mensajes
 - ❌ Sin custom_attributes en placeholders (v6.2 cuando confirmen flujos)
+
+---
+
+## Patch 7 — Indicador de mensajes programados en bandeja + banner
+
+Mejora UX que da visibilidad de los mensajes programados (Copilot Patch 2
++ Campañas Patch 6) **antes** de que el operador responda una conversación.
+Evita que un agente conteste sin saber que ya hay un envío automático en
+camino, o que pierda contexto sobre futuros toques con el cliente.
+
+### Capas implementadas
+
+**1. Indicador en la bandeja** (`ScheduledMessagesIndicator.vue`)
+
+Chip violeta al lado del nombre del contacto en cada `ConversationCard` de
+la bandeja principal. Solo se renderiza si hay scheduled `pending` con
+`send_at > now`:
+
+```
+Facundo Petrucelli  🕐 1 programado · en 2d
+```
+
+- Plural automático: `"1 programado"` / `"5 programados"` (i18n es/en).
+- Icono según origen: `send-clock-outline` si el próximo es del Copilot
+  (manual), `megaphone-outline` si viene de campaign.
+- Distancia compacta inline: `"· en 2d"`, `"· en 30m"`, `"· ahora"`.
+- Tooltip on hover: detalle "X manuales + Y de campañas · próximo en Z".
+
+**2. Banner en la conversación abierta** (`ScheduledMessagesBanner.vue`)
+
+Arriba del thread de mensajes, banner colapsable con margen lateral
+(`mr-14`) para no chocar con los iconos flotantes derechos (Contacto,
+Capitán, etc.):
+
+```
+[📅]  1 mensaje programado  próximo 18 may · 09:00 · en 1 día  ▾
+```
+
+Expandido revela una lista con 3 columnas por item:
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ 18 MAY   🔔 Recordatorio                          ✏️ ❌ │
+│ 09:00    Recordatorio: Tienes una reunión hoy...        │
+│ en 1 día                                                 │
+└──────────────────────────────────────────────────────────┘
+```
+
+- Columna izquierda: fecha apilada (`DD MMM` / `HH:mm` / distance).
+- Columna central: título (campaign.title si aplica, o `"Recordatorio"`
+  para manuales) + preview de 180 chars.
+- Columna derecha: iconos de acción.
+
+**3. Cancel inline** (solo `administrator`)
+
+Botón `❌` (dismiss-outline) en cada item del banner expandido. Click →
+confirm rudimentario → `DELETE /api/v1/accounts/:id/scheduled_messages/:id`
+→ marca `status='cancelled'` (no borra row, preserva auditoría) → refresca
+summary + lista.
+
+Permission gating: en el backend via `before_action :ensure_admin` que
+verifica `Current.account_user.administrator?`. En el frontend via
+`useMapGetter('getCurrentRole')`.
+
+### Endpoints (backend Rails)
+
+`Api::V1::Accounts::ScheduledMessagesController`:
+
+| Método | Path | Para |
+|---|---|---|
+| GET | `/scheduled_messages/summary` | Map `{display_id: {manual_count, campaign_count, total, next_send_at, next_source}}` para overlay en bandeja. Una sola query con JOIN. |
+| GET | `/scheduled_messages?conversation_id=N` | Lista detallada de una conv (manuales + campaign info). Acepta `display_id` o `id` real. |
+| DELETE | `/scheduled_messages/:id` | Cancelar (admin-only). |
+
+### Polling + cache
+
+`ChatList.vue` dispatcha `fetchSummary` al `onMounted` + cada **60s** con
+`setInterval` (cleanup en `onBeforeUnmount`). El `ScheduledMessagesBanner`
+hace `fetchForConversation` cuando se monta o cambia el `conversationId`.
+
+Sin riesgo de regresión:
+- Si el endpoint falla: log warn + UI igual al pre-Patch 7 (chip y banner
+  condicionados a `total > 0`).
+- Si el módulo Vuex no existe: getters retornan `null` → chip oculto.
+- Si el backend devuelve `{}`: ningún chip se renderiza.
+
+### Limitaciones conocidas (v7 MVP)
+
+- ❌ Sin edición inline del programado (icono ✏️ está como placeholder).
+- ❌ Banner cancel usa `window.confirm` rudimentario, sería mejor modal custom.
+- ❌ Polling fijo cada 60s — websocket push sería más reactivo si crece la app.
+- ❌ Solo lee `pending` con `send_at > now`. Si quisiéramos mostrar histórico
+  (sent/cancelled), agregar tab/filter.
