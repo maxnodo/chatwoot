@@ -41,6 +41,8 @@ import macros from './modules/macros';
 import notifications from './modules/notifications';
 import portals from './modules/helpCenterPortals';
 import reports from './modules/reports';
+// NODO PATCH 7: indicador de mensajes programados en bandeja + banner
+import scheduledMessages from './modules/scheduledMessages';
 import sla from './modules/sla';
 import slaReports from './modules/SLAReports';
 import summaryReports from './modules/summaryReports';
@@ -104,6 +106,7 @@ export default createStore({
     notifications,
     portals,
     reports,
+    scheduledMessages,
     sla,
     slaReports,
     summaryReports,

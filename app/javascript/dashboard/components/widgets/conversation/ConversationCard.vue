@@ -13,6 +13,8 @@ import VoiceCallStatus from './VoiceCallStatus.vue';
 import Checkbox from 'dashboard/components-next/checkbox/Checkbox.vue';
 // NODO PATCH 5b: insignia "Cliente verificado" en la bandeja de entrada legacy.
 import CustomerVerifiedBadge from 'dashboard/routes/dashboard/conversation/contact/CustomerVerifiedBadge.vue';
+// NODO PATCH 7: indicador de mensajes programados (Copilot o Campaign) en la bandeja.
+import ScheduledMessagesIndicator from './conversationCardComponents/ScheduledMessagesIndicator.vue';
 
 const props = defineProps({
   chat: { type: Object, required: true },
@@ -223,6 +225,12 @@ watch(
         <UnreadBadge
           v-if="hasUnread"
           :count="unreadCount"
+          class="ltr:ml-auto rtl:mr-auto mt-1"
+        />
+        <!-- NODO PATCH 7: indicador de programados (solo se renderiza si hay alguno pending).
+             Nota: commit 3690a167c posterior lo mueve al h4 al lado del nombre. -->
+        <ScheduledMessagesIndicator
+          :conversation-id="chat.id"
           class="ltr:ml-auto rtl:mr-auto mt-1"
         />
       </div>
