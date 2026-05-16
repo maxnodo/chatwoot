@@ -487,5 +487,10 @@
   },
   "GALLERY_VIEW": {
     "ERROR_DOWNLOADING": "Unable to download attachment. Please try again"
+  },
+  "SCHEDULED_MESSAGES": {
+    "BANNER": {
+      "SUMMARY": "This contact has {total} scheduled message(s). Next: {next}"
+    }
   }
 }

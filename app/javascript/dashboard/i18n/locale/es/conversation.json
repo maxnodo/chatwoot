@@ -486,5 +486,10 @@
   },
   "GALLERY_VIEW": {
     "ERROR_DOWNLOADING": "No se pudo descargar el archivo adjunto. Por favor, inténtelo de nuevo"
+  },
+  "SCHEDULED_MESSAGES": {
+    "BANNER": {
+      "SUMMARY": "Este contacto tiene {total} mensaje(s) programado(s). Próximo: {next}"
+    }
   }
 }
