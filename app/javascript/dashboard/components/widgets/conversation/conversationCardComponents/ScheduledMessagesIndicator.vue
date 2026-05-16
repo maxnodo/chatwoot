@@ -42,21 +42,40 @@ const icon = computed(() =>
     : 'send-clock-outline'
 );
 
+const dateLocale = computed(() => (locale.value === 'es' ? es : enUS));
+
+// Distance "compacta" para mostrar al lado del chip ("en 2d", "en 30m", "ahora")
+// Uso strict + sin sufijo "approximately"; le agrego "en " manualmente para que
+// sea natural en español: "en 2d", "en 30m", etc.
+const compactDistance = computed(() => {
+  if (!summary.value?.next_send_at) return '';
+  const dt = new Date(summary.value.next_send_at);
+  const ms = dt.getTime() - Date.now();
+  if (ms <= 0) return locale.value === 'es' ? 'ahora' : 'now';
+  return formatDistanceToNowStrict(dt, {
+    addSuffix: true,
+    locale: dateLocale.value,
+  });
+});
+
+// Label "1 programado" / "5 programados" según count (singular vs plural)
+const label = computed(() => {
+  const n = count.value;
+  if (locale.value === 'es') {
+    return n === 1 ? '1 programado' : `${n} programados`;
+  }
+  return n === 1 ? '1 scheduled' : `${n} scheduled`;
+});
+
 const tooltip = computed(() => {
   if (!summary.value) return '';
-  const dt = new Date(summary.value.next_send_at);
-  const localeObj = locale.value === 'es' ? es : enUS;
-  const distance = formatDistanceToNowStrict(dt, {
-    addSuffix: true,
-    locale: localeObj,
-  });
   const manual = summary.value.manual_count || 0;
   const campaign = summary.value.campaign_count || 0;
   const parts = [];
   if (manual > 0) parts.push(`${manual} manual${manual > 1 ? 'es' : ''}`);
   if (campaign > 0)
     parts.push(`${campaign} de campaña${campaign > 1 ? 's' : ''}`);
-  return `${parts.join(' + ')} · próximo ${distance}`;
+  return `${parts.join(' + ')} · próximo ${compactDistance.value}`;
 });
 </script>
 
@@ -64,9 +83,14 @@ const tooltip = computed(() => {
   <span
     v-if="hasScheduled"
     :title="tooltip"
-    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold leading-4 text-white bg-n-violet-9 dark:bg-n-violet-9 ring-1 ring-n-violet-11/30 align-middle"
+    class="inline-flex items-center gap-1 align-middle text-xs font-normal leading-4 text-n-violet-11"
   >
-    <fluent-icon :icon="icon" size="14" />
-    <span>{{ count }}</span>
+    <span
+      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium bg-n-violet-3 dark:bg-n-violet-3 text-n-violet-11"
+    >
+      <fluent-icon :icon="icon" size="12" />
+      <span>{{ label }}</span>
+    </span>
+    <span class="opacity-80">·&nbsp;{{ compactDistance }}</span>
   </span>
 </template>
