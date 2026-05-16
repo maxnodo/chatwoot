@@ -80,6 +80,16 @@ export const actions = {
   clearForConversation: ({ commit }, conversationId) => {
     commit(types.CLEAR_FOR_CONVERSATION, conversationId);
   },
+
+  cancel: async ({ dispatch }, { id, conversationId }) => {
+    await ScheduledMessagesAPI.cancel(id);
+    // Refrescar summary global (afecta el indicador en bandeja) y la lista
+    // detallada de la conv (afecta el banner).
+    await Promise.all([
+      dispatch('fetchSummary'),
+      conversationId ? dispatch('fetchForConversation', conversationId) : null,
+    ].filter(Boolean));
+  },
 };
 
 export const mutations = {

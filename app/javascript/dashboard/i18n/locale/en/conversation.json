@@ -490,7 +490,10 @@
   },
   "SCHEDULED_MESSAGES": {
     "BANNER": {
-      "SUMMARY": "This contact has {total} scheduled message(s). Next: {next}"
+      "SUMMARY": "This contact has {total} scheduled message(s). Next: {next}",
+      "CANCEL": "Cancel",
+      "CANCEL_TOOLTIP": "Cancel this scheduled send",
+      "CONFIRM_CANCEL": "Cancel the scheduled send for {time}? This cannot be undone."
     }
   }
 }

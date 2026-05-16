@@ -90,6 +90,31 @@ const formatItem = item => {
 };
 
 const items = computed(() => list.value.map(formatItem));
+
+// NODO PATCH 7.3: cancelar inline.
+// Solo admin puede; el backend devuelve 401/403 si no.
+// El feedback al user es optimista: dispatch + refresh summary/details.
+const currentUserRole = useMapGetter('getCurrentRole');
+const canCancel = computed(() => currentUserRole.value === 'administrator');
+
+const handleCancel = async item => {
+  // confirm rudimentario; idealmente reemplazar con un modal custom
+  const ok = window.confirm(
+    t('SCHEDULED_MESSAGES.BANNER.CONFIRM_CANCEL', {
+      time: item.formattedTime,
+    })
+  );
+  if (!ok) return;
+  try {
+    await store.dispatch('scheduledMessages/cancel', {
+      id: item.id,
+      conversationId: props.conversationId,
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.warn('[scheduledMessages] cancel failed:', error?.message);
+  }
+};
 </script>
 
 <template>
@@ -151,6 +176,16 @@ const items = computed(() => list.value.map(formatItem));
           >
             🏷️ {{ item.campaign.title }}
           </span>
+          <!-- NODO PATCH 7.3: botón cancelar inline (solo admin) -->
+          <button
+            v-if="canCancel"
+            type="button"
+            class="ml-auto text-xxs text-n-ruby-11 hover:underline focus:outline-none"
+            :title="t('SCHEDULED_MESSAGES.BANNER.CANCEL_TOOLTIP')"
+            @click.stop="handleCancel(item)"
+          >
+            {{ t('SCHEDULED_MESSAGES.BANNER.CANCEL') }}
+          </button>
         </div>
         <div class="text-n-slate-11 leading-snug whitespace-pre-line">
           {{ item.preview }}
