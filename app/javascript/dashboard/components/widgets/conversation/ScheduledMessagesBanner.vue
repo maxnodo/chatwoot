@@ -3,9 +3,15 @@
   contacto tiene mensajes programados pending. Le da contexto al operador
   antes de responder para evitar mensajes contradictorios.
 
-  - Si total === 0 → no se renderiza.
-  - Click "Ver todos" → expande lista con preview, timestamp y origen.
-  - Cancelar inline llega en commit 7.3.
+  Diseño:
+    - Header: chip cuadrado violeta con icono + título "N mensaje(s)
+      programado(s)" + meta "próximo {fecha} · {hora} · en {distance}".
+    - Lista expandida: cada item tiene columna izquierda apilada
+      (fecha grande, hora destacada, distancia) y columna derecha con
+      título (Recordatorio / nombre de campaign) + preview del mensaje.
+      A la derecha: cancel inline (solo admin).
+    - Márgenes laterales pensados para no chocar con los iconos flotantes
+      derechos de Chatwoot (Contacto, Capitán, etc.).
 -->
 <script setup>
 import { computed, ref, watch, onMounted } from 'vue';
@@ -38,15 +44,37 @@ const hasScheduled = computed(() => (summary.value?.total || 0) > 0);
 
 const dateLocale = computed(() => (locale.value === 'es' ? es : enUS));
 
-const nextSendAtPretty = computed(() => {
+// Header: pluraliza "1 mensaje programado" / "N mensajes programados".
+const headerLabel = computed(() => {
+  const n = summary.value?.total || 0;
+  if (locale.value === 'es') {
+    return n === 1 ? '1 mensaje programado' : `${n} mensajes programados`;
+  }
+  return n === 1 ? '1 scheduled message' : `${n} scheduled messages`;
+});
+
+// Meta del header: "18 may · 09:00 · en 1 día" (sin "próximo " porque el
+// label ya da el contexto. Va separado de headerLabel para poder tipografiar
+// distinto).
+const nextDateLabel = computed(() => {
   if (!summary.value?.next_send_at) return '';
   const dt = new Date(summary.value.next_send_at);
-  const distance = formatDistanceToNowStrict(dt, {
+  return format(dt, 'd MMM', { locale: dateLocale.value }).toLowerCase();
+});
+
+const nextTimeLabel = computed(() => {
+  if (!summary.value?.next_send_at) return '';
+  const dt = new Date(summary.value.next_send_at);
+  return format(dt, 'HH:mm', { locale: dateLocale.value });
+});
+
+const nextDistance = computed(() => {
+  if (!summary.value?.next_send_at) return '';
+  const dt = new Date(summary.value.next_send_at);
+  return formatDistanceToNowStrict(dt, {
     addSuffix: true,
     locale: dateLocale.value,
   });
-  const formatted = format(dt, 'd MMM, HH:mm', { locale: dateLocale.value });
-  return `${formatted} (${distance})`;
 });
 
 const fetchDetails = () => {
@@ -56,7 +84,6 @@ const fetchDetails = () => {
   );
 };
 
-// Fetch al montar y cuando cambia el id de conversación.
 onMounted(() => {
   if (props.conversationId) fetchDetails();
 });
@@ -72,18 +99,32 @@ const toggleExpanded = () => {
   expanded.value = !expanded.value;
 };
 
+// Title de cada item:
+//   - campaign → campaign.title (ej. "Promo Mayo")
+//   - manual   → "Recordatorio" / "Reminder" (i18n)
+const itemTitle = item => {
+  if (item.source === 'campaign' && item.campaign?.title) {
+    return item.campaign.title;
+  }
+  return locale.value === 'es' ? 'Recordatorio' : 'Reminder';
+};
+
 const formatItem = item => {
   const dt = new Date(item.send_at);
   return {
     ...item,
-    formattedTime: format(dt, 'd MMM, HH:mm', { locale: dateLocale.value }),
+    // Columna izquierda apilada: fecha, hora, distancia
+    dayUpper: format(dt, 'd MMM', { locale: dateLocale.value }).toUpperCase(),
+    timeBig: format(dt, 'HH:mm', { locale: dateLocale.value }),
     distance: formatDistanceToNowStrict(dt, {
       addSuffix: true,
       locale: dateLocale.value,
     }),
+    title: itemTitle(item),
+    icon: item.source === 'campaign' ? 'megaphone-outline' : 'alert-outline',
     preview:
-      (item.content || '').length > 120
-        ? `${item.content.slice(0, 120)}…`
+      (item.content || '').length > 180
+        ? `${item.content.slice(0, 180)}…`
         : item.content,
     isCampaign: item.source === 'campaign',
   };
@@ -91,17 +132,14 @@ const formatItem = item => {
 
 const items = computed(() => list.value.map(formatItem));
 
-// NODO PATCH 7.3: cancelar inline.
-// Solo admin puede; el backend devuelve 401/403 si no.
-// El feedback al user es optimista: dispatch + refresh summary/details.
+// NODO PATCH 7.3: cancelar inline. Solo admin puede.
 const currentUserRole = useMapGetter('getCurrentRole');
 const canCancel = computed(() => currentUserRole.value === 'administrator');
 
 const handleCancel = async item => {
-  // confirm rudimentario; idealmente reemplazar con un modal custom
   const ok = window.confirm(
     t('SCHEDULED_MESSAGES.BANNER.CONFIRM_CANCEL', {
-      time: item.formattedTime,
+      time: `${item.dayUpper} ${item.timeBig}`,
     })
   );
   if (!ok) return;
@@ -118,77 +156,115 @@ const handleCancel = async item => {
 </script>
 
 <template>
+  <!--
+    Márgenes: ml-3 (igual que antes), mr-14 para no chocar con los iconos
+    flotantes derechos (sidebar de Contacto / Capitán). max-w para que en
+    pantallas grandes no se estire infinito.
+  -->
   <div
     v-if="hasScheduled"
-    class="mx-3 mt-2 mb-1 rounded-lg border border-n-violet-6 bg-n-violet-2 dark:bg-n-violet-3"
+    class="ml-3 mr-14 mt-2 mb-1 rounded-xl border border-n-violet-5 bg-n-violet-2 dark:bg-n-violet-3"
   >
+    <!-- HEADER -->
     <div
-      class="px-3 py-2 flex items-center gap-2 cursor-pointer select-none"
+      class="px-3 py-2 flex items-center gap-3 cursor-pointer select-none"
       @click="toggleExpanded"
     >
-      <fluent-icon
-        :icon="
-          summary?.next_source === 'campaign'
-            ? 'megaphone-outline'
-            : 'send-clock-outline'
-        "
-        size="16"
-        class="text-n-violet-11 flex-shrink-0"
-      />
-      <span class="text-xs text-n-violet-11">
-        {{
-          t('SCHEDULED_MESSAGES.BANNER.SUMMARY', {
-            total: summary?.total || 0,
-            next: nextSendAtPretty,
-          })
-        }}
-      </span>
+      <!-- Chip cuadrado a la izquierda con icono de calendario -->
+      <div
+        class="flex-shrink-0 w-9 h-9 rounded-lg bg-n-violet-9 text-white flex items-center justify-center"
+      >
+        <fluent-icon
+          :icon="
+            summary?.next_source === 'campaign'
+              ? 'megaphone-outline'
+              : 'calendar-clock-outline'
+          "
+          size="18"
+        />
+      </div>
+
+      <!-- Título + meta inline en una sola línea -->
+      <div class="flex-1 min-w-0 flex items-center gap-2 flex-wrap text-sm">
+        <span class="font-semibold text-n-slate-12">{{ headerLabel }}</span>
+        <span class="text-n-slate-11">{{
+          locale === 'es' ? 'próximo' : 'next'
+        }}</span>
+        <span class="font-medium text-n-violet-11">{{ nextDateLabel }}</span>
+        <span class="text-n-slate-10">·</span>
+        <span class="font-medium text-n-violet-11">{{ nextTimeLabel }}</span>
+        <span class="text-n-slate-10">·</span>
+        <span class="text-n-slate-11">{{ nextDistance }}</span>
+      </div>
+
+      <!-- Chevron -->
       <fluent-icon
         :icon="expanded ? 'chevron-up' : 'chevron-down'"
-        size="14"
-        class="ml-auto text-n-violet-11"
+        size="16"
+        class="text-n-slate-11 flex-shrink-0"
       />
     </div>
+
+    <!-- LISTA EXPANDIDA -->
     <div
       v-if="expanded"
-      class="px-3 pb-3 pt-0 border-t border-n-violet-5 flex flex-col gap-2 max-h-60 overflow-y-auto"
+      class="px-3 pb-3 pt-0 flex flex-col gap-2 max-h-72 overflow-y-auto"
     >
       <div
         v-for="item in items"
         :key="item.id"
-        class="text-xs bg-n-alpha-1 rounded-md p-2"
+        class="flex gap-3 bg-n-background dark:bg-n-alpha-1 rounded-lg p-3 border border-n-violet-3"
       >
-        <div class="flex items-center gap-2 mb-1">
-          <fluent-icon
-            :icon="
-              item.isCampaign ? 'megaphone-outline' : 'send-clock-outline'
-            "
-            size="12"
-            class="text-n-violet-11"
-          />
-          <span class="font-medium text-n-slate-12">
-            {{ item.formattedTime }}
+        <!-- Columna izquierda: fecha + hora + distancia apilados -->
+        <div
+          class="flex-shrink-0 w-16 flex flex-col items-start leading-tight"
+        >
+          <span class="text-xs text-n-slate-11 uppercase tracking-wide">
+            {{ item.dayUpper }}
           </span>
-          <span class="text-n-slate-11">· {{ item.distance }}</span>
-          <span
-            v-if="item.isCampaign && item.campaign"
-            class="ml-auto text-xxs text-n-violet-11"
+          <span class="text-lg font-bold text-n-violet-11">
+            {{ item.timeBig }}
+          </span>
+          <span class="text-xxs text-n-slate-11">{{ item.distance }}</span>
+        </div>
+
+        <!-- Columna central: título (Recordatorio / Campaign) + preview -->
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-1.5 mb-0.5">
+            <fluent-icon
+              :icon="item.icon"
+              size="14"
+              class="text-n-violet-11 flex-shrink-0"
+            />
+            <span class="text-sm font-medium text-n-slate-12">
+              {{ item.title }}
+            </span>
+          </div>
+          <div
+            class="text-sm text-n-slate-11 leading-snug whitespace-pre-line"
           >
-            🏷️ {{ item.campaign.title }}
+            {{ item.preview }}
+          </div>
+        </div>
+
+        <!-- Columna derecha: iconos de acción (cancel solo admin) -->
+        <div class="flex-shrink-0 flex items-start gap-1">
+          <!-- placeholder edit icon — deshabilitado hasta tener UI de edit -->
+          <span
+            class="text-n-slate-9 opacity-30 cursor-not-allowed"
+            :title="locale === 'es' ? 'Editar (próximamente)' : 'Edit (soon)'"
+          >
+            <fluent-icon icon="edit-outline" size="14" />
           </span>
-          <!-- NODO PATCH 7.3: botón cancelar inline (solo admin) -->
           <button
             v-if="canCancel"
             type="button"
-            class="ml-auto text-xxs text-n-ruby-11 hover:underline focus:outline-none"
+            class="text-n-ruby-11 hover:text-n-ruby-9 focus:outline-none p-0.5 rounded hover:bg-n-ruby-3"
             :title="t('SCHEDULED_MESSAGES.BANNER.CANCEL_TOOLTIP')"
             @click.stop="handleCancel(item)"
           >
-            {{ t('SCHEDULED_MESSAGES.BANNER.CANCEL') }}
+            <fluent-icon icon="dismiss-outline" size="14" />
           </button>
-        </div>
-        <div class="text-n-slate-11 leading-snug whitespace-pre-line">
-          {{ item.preview }}
         </div>
       </div>
     </div>
