@@ -20,8 +20,8 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
   # NOTE: No usamos check_authorization automático porque la convención de
   # Pundit infiere el modelo desde controller_name ("ScheduledMessage") y
   # nuestro modelo se llama NodoScheduledMessage. Los GETs ya están scopeados
-  # por Current.account, lo cual basta para read-only. Cancel (DELETE) sumará
-  # admin check explícito en Patch 7.3.
+  # por Current.account. DELETE (cancel) chequea administrator explícitamente.
+  before_action :ensure_admin, only: [:destroy]
 
   # GET .../scheduled_messages/summary
   # Resumen agrupado por conversation_id, optimizado para overlay en bandeja.
@@ -68,7 +68,27 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
     render json: @scheduled_messages.map { |sm| serialize(sm) }
   end
 
+  # DELETE /api/v1/accounts/:id/scheduled_messages/:id
+  # Cancelar un mensaje programado. Solo administrator (ver before_action).
+  # No borramos el row para preservar auditoría — lo marcamos como cancelled
+  # y el cron de dispatch lo skippea (scope NodoScheduledMessage::PENDING).
+  def destroy
+    scheduled = NodoScheduledMessage.find_by(
+      id: params[:id],
+      account_id: Current.account.id
+    )
+    return render json: { error: 'scheduled message not found' }, status: :not_found unless scheduled
+    return render json: { error: 'cannot cancel a message that is not pending' }, status: :unprocessable_entity unless scheduled.status == 'pending'
+
+    scheduled.update!(status: 'cancelled')
+    render json: { id: scheduled.id, status: scheduled.status }
+  end
+
   private
+
+  def ensure_admin
+    raise Pundit::NotAuthorizedError unless Current.account_user&.administrator?
+  end
 
   def serialize(scheduled_message)
     campaign = scheduled_message.campaign if scheduled_message.campaign_id
