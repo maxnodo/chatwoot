@@ -1,5 +1,10 @@
-// NODO PATCH 7: API client para scheduled messages (read-only en este commit).
+// NODO PATCH 7: API client para scheduled messages.
 // Endpoints servidos por Api::V1::Accounts::ScheduledMessagesController.
+//
+// IMPORTANTE: ApiClient de Chatwoot usa `axios` global (no this.axios).
+// El comment `/* global axios */` evita el warning de ESLint no-undef.
+
+/* global axios */
 
 import ApiClient from './ApiClient';
 
@@ -12,13 +17,13 @@ class ScheduledMessagesAPI extends ApiClient {
   // → Map {conversation_id: {manual_count, campaign_count, total, next_send_at, next_source}}
   // Una sola request al cargar la bandeja, overlay sobre ConversationCards.
   getSummary() {
-    return this.axios.get(`${this.url}/summary`);
+    return axios.get(`${this.url}/summary`);
   }
 
   // GET /api/v1/accounts/:id/scheduled_messages?conversation_id=N
   // Lista detallada para el banner en la conv abierta.
   getForConversation(conversationId) {
-    return this.axios.get(this.url, {
+    return axios.get(this.url, {
       params: { conversation_id: conversationId },
     });
   }
@@ -26,7 +31,7 @@ class ScheduledMessagesAPI extends ApiClient {
   // DELETE /api/v1/accounts/:id/scheduled_messages/:id
   // Cancela un programado (status='cancelled'). Solo admin.
   cancel(id) {
-    return this.axios.delete(`${this.url}/${id}`);
+    return axios.delete(`${this.url}/${id}`);
   }
 }
 
