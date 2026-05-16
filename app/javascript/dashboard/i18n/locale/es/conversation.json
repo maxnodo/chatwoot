@@ -467,7 +467,10 @@
   },
   "SCHEDULED_MESSAGES": {
     "BANNER": {
-      "SUMMARY": "Este contacto tiene {total} mensaje(s) programado(s). Próximo: {next}"
+      "SUMMARY": "Este contacto tiene {total} mensaje(s) programado(s). Próximo: {next}",
+      "CANCEL": "Cancelar",
+      "CANCEL_TOOLTIP": "Cancelar este envío programado",
+      "CONFIRM_CANCEL": "¿Cancelar el envío programado para {time}? Esta acción no se puede deshacer."
     }
   }
 }

@@ -22,6 +22,12 @@ class ScheduledMessagesAPI extends ApiClient {
       params: { conversation_id: conversationId },
     });
   }
+
+  // DELETE /api/v1/accounts/:id/scheduled_messages/:id
+  // Cancela un programado (status='cancelled'). Solo admin.
+  cancel(id) {
+    return this.axios.delete(`${this.url}/${id}`);
+  }
 }
 
 export default new ScheduledMessagesAPI();
