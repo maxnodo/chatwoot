@@ -24,25 +24,28 @@ class Api::V1::Accounts::ScheduledMessagesController < Api::V1::Accounts::BaseCo
   before_action :ensure_admin, only: [:destroy]
 
   # GET .../scheduled_messages/summary
-  # Resumen agrupado por conversation_id, optimizado para overlay en bandeja.
-  # Una sola query. Devuelve solo lo necesario para el ícono + tooltip.
+  # Resumen agrupado por conversation **display_id** (NO por conversations.id),
+  # porque el Vuex store del frontend identifica chats por display_id (el id
+  # account-scoped que expone la API). Una sola query con JOIN para no romper
+  # performance en bandejas grandes.
   def summary
     rows = NodoScheduledMessage
-           .where(account_id: Current.account.id, status: 'pending')
-           .where('send_at > ?', Time.current)
-           .select(:conversation_id, :campaign_id, :send_at)
-           .order(send_at: :asc)
+           .joins('INNER JOIN conversations ON conversations.id = nodo_scheduled_messages.conversation_id')
+           .where(nodo_scheduled_messages: { account_id: Current.account.id, status: 'pending' })
+           .where('nodo_scheduled_messages.send_at > ?', Time.current)
+           .order('nodo_scheduled_messages.send_at ASC')
+           .pluck('conversations.display_id', 'nodo_scheduled_messages.campaign_id', 'nodo_scheduled_messages.send_at')
 
-    grouped = rows.group_by(&:conversation_id).transform_values do |items|
-      manual = items.count { |r| r.campaign_id.nil? }
-      campaign = items.count { |r| r.campaign_id.present? }
-      first = items.first
+    grouped = rows.group_by { |row| row[0] }.transform_values do |items|
+      manual = items.count { |r| r[1].nil? }
+      campaign = items.count { |r| r[1].present? }
+      first_campaign_id, first_send_at = items.first[1], items.first[2]
       {
         manual_count: manual,
         campaign_count: campaign,
         total: items.size,
-        next_send_at: first&.send_at&.iso8601,
-        next_source: first&.campaign_id ? 'campaign' : 'manual'
+        next_send_at: first_send_at&.iso8601,
+        next_source: first_campaign_id ? 'campaign' : 'manual'
       }
     end
 
