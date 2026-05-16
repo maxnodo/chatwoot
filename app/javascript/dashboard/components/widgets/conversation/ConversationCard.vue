@@ -181,6 +181,11 @@ watch(
         <CustomerVerifiedBadge
           :custom-attributes="currentContact.custom_attributes || currentContact.customAttributes"
         />
+        <!-- NODO PATCH 7: chip de mensajes programados al lado del nombre -->
+        <ScheduledMessagesIndicator
+          :conversation-id="chat.id"
+          class="ml-1"
+        />
       </h4>
       <VoiceCallStatus
         v-if="voiceCallData.status"
@@ -227,12 +232,9 @@ watch(
           :count="unreadCount"
           class="ltr:ml-auto rtl:mr-auto mt-1"
         />
-        <!-- NODO PATCH 7: indicador de programados (solo se renderiza si hay alguno pending).
-             Nota: commit 3690a167c posterior lo mueve al h4 al lado del nombre. -->
-        <ScheduledMessagesIndicator
-          :conversation-id="chat.id"
-          class="ltr:ml-auto rtl:mr-auto mt-1"
-        />
+        <!-- NODO PATCH 7 (commit 3690a167c): el ScheduledMessagesIndicator se movió
+             al h4 al lado del nombre. Ya no va acá en el stack derecho. -->
+
       </div>
       <CardLabels
         v-if="showLabelsSection"
