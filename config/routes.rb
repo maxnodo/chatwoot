@@ -125,6 +125,13 @@ Rails.application.routes.draw do
             end
           end
           resources :campaigns, only: [:index, :create, :show, :update, :destroy]
+          # NODO PATCH 7: indicador de mensajes programados en bandeja + banner.
+          # :destroy se agrega en commit 7.3 (cancel inline desde la conv).
+          resources :scheduled_messages, only: [:index] do
+            collection do
+              get :summary
+            end
+          end
           resources :dashboard_apps, only: [:index, :show, :create, :update, :destroy]
           namespace :channels do
             resource :twilio_channel, only: [:create]
