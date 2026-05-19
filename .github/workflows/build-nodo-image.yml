@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - nodo-customizations
+      # NODO: ramas de rebase contra versiones upstream nuevas también buildean.
+      # Permite validar la imagen antes de merge a la rama productiva.
+      - 'rebase/**'
   workflow_dispatch:
     inputs:
       chatwoot_version:
