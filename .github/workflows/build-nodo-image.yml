@@ -46,18 +46,31 @@ jobs:
       - name: Resolve tags
         id: tags
         run: |
+          BRANCH="${{ github.ref_name }}"
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             CW_VERSION="${{ github.event.inputs.chatwoot_version }}"
             IMG_TAG="${{ github.event.inputs.image_tag }}"
+            PISA_LATEST="true"
+          elif [[ "$BRANCH" == rebase/* ]]; then
+            # NODO: rama de rebase. Extraer versión del nombre de la rama.
+            # Ej: rebase/v4.14.0 → CW_VERSION=v4.14.0, IMG_TAG=v4.14.0-rebase.RUN
+            CW_VERSION="${BRANCH#rebase/}"
+            IMG_TAG="${CW_VERSION}-rebase.${{ github.run_number }}"
+            PISA_LATEST="false"  # NO pisar :latest desde ramas de rebase
           else
+            # Rama productiva nodo-customizations
             CW_VERSION="v4.13.0"
             IMG_TAG="v4.13.0-nodo.${{ github.run_number }}"
+            PISA_LATEST="true"
           fi
           echo "cw_version=$CW_VERSION" >> "$GITHUB_OUTPUT"
           echo "img_tag=$IMG_TAG" >> "$GITHUB_OUTPUT"
+          echo "pisa_latest=$PISA_LATEST" >> "$GITHUB_OUTPUT"
           echo "Imagen final: ghcr.io/${{ github.repository_owner }}/chatwoot:$IMG_TAG"
+          echo "Pisa :latest? $PISA_LATEST"
 
-      - name: Build & push image
+      - name: Build & push image (con :latest)
+        if: steps.tags.outputs.pisa_latest == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -68,6 +81,20 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ github.repository_owner }}/chatwoot:${{ steps.tags.outputs.img_tag }}
             ${{ env.REGISTRY }}/${{ github.repository_owner }}/chatwoot:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push image (solo tag versionado, sin :latest)
+        if: steps.tags.outputs.pisa_latest == 'false'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.nodo
+          build-args: |
+            CHATWOOT_VERSION=${{ steps.tags.outputs.cw_version }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/chatwoot:${{ steps.tags.outputs.img_tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
