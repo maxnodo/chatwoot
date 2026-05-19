@@ -58,9 +58,11 @@ jobs:
             IMG_TAG="${CW_VERSION}-rebase.${{ github.run_number }}"
             PISA_LATEST="false"  # NO pisar :latest desde ramas de rebase
           else
-            # Rama productiva nodo-customizations
-            CW_VERSION="v4.13.0"
-            IMG_TAG="v4.13.0-nodo.${{ github.run_number }}"
+            # Rama productiva nodo-customizations.
+            # NODO: tras rebase a v4.14.0, base actualizada. Para futuros upgrades,
+            # bumpear acá la versión upstream + corresponder con el tag IMG.
+            CW_VERSION="v4.14.0"
+            IMG_TAG="v4.14.0-nodo.${{ github.run_number }}"
             PISA_LATEST="true"
           fi
           echo "cw_version=$CW_VERSION" >> "$GITHUB_OUTPUT"
