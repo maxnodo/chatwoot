@@ -580,6 +580,12 @@ export default {
       const nextValue = !this.quotedReplyPreference;
       this.setQuotedReplyFlagForInbox(this.channelType, nextValue);
     },
+    // NODO PATCH 9: insertar el link de pago generado en el mensaje
+    onInsertPaymentLink(text) {
+      if (!text) return;
+      const current = this.message ? `${this.message}\n\n` : '';
+      this.message = `${current}${text}`;
+    },
     shouldIncludeQuotedEmail() {
       return (
         this.quotedReplyPreference &&
@@ -1430,6 +1436,7 @@ export default {
         @select-content-template="openContentTemplateModal"
         @toggle-insert-article="toggleInsertArticle"
         @toggle-quoted-reply="toggleQuotedReply"
+        @insert-payment-link="onInsertPaymentLink"
       />
     </Transition>
 

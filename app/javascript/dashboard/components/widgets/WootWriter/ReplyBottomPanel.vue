@@ -8,13 +8,15 @@ import inboxMixin from 'shared/mixins/inboxMixin';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 import { getAllowedFileTypesByChannel } from '@chatwoot/utils';
 import VideoCallButton from '../VideoCallButton.vue';
+// NODO PATCH 9: botón de link de pago Stripe en el composer
+import PaymentLinkButton from '../conversation/PaymentLinkButton.vue';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
 import { mapGetters } from 'vuex';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 
 export default {
   name: 'ReplyBottomPanel',
-  components: { NextButton, FileUpload, VideoCallButton },
+  components: { NextButton, FileUpload, VideoCallButton, PaymentLinkButton },
   mixins: [inboxMixin],
   props: {
     isNote: {
@@ -131,6 +133,7 @@ export default {
     'selectWhatsappTemplate',
     'selectContentTemplate',
     'toggleQuotedReply',
+    'insertPaymentLink',
   ],
   setup(props) {
     const { setSignatureFlagForInbox, fetchSignatureFlagFromUISettings } =
@@ -374,6 +377,16 @@ export default {
           !isEditorDisabled
         "
         :conversation-id="conversationId"
+      />
+      <!-- NODO PATCH 9: link de pago Stripe (Evolution + WhatsApp Cloud) -->
+      <PaymentLinkButton
+        v-if="
+          (isAPIInbox || isAWhatsAppChannel) &&
+          !isOnPrivateNote &&
+          !isEditorDisabled
+        "
+        :conversation-id="conversationId"
+        @insert-payment-link="$emit('insertPaymentLink', $event)"
       />
       <transition name="modal-fade">
         <div
