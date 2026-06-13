@@ -84,15 +84,15 @@ export default {
           return;
         }
         // Texto que se inserta en el mensaje.
-        // Evolution (Baileys): si la URL va "limpia", Baileys intenta generar
-        // el link preview de Stripe → falla → el mensaje NO se envía. Envuelta
-        // en negrita markdown (**url**) Baileys NO la detecta como URL, no
-        // intenta preview, y el mensaje se entrega. (Comprobado en prod.)
-        // WhatsApp Cloud: Meta maneja el preview server-side, va texto + link.
+        // El emoji y el texto se entregan sin problema en ambos canales. Lo
+        // único que rompía Evolution era la URL "limpia": Baileys la detecta,
+        // intenta generar el link preview de Stripe, falla, y el mensaje NO se
+        // envía. Envuelta en negrita markdown (**url**) Baileys NO la detecta
+        // como URL → no intenta preview → entrega. (Comprobado en prod.)
+        // WhatsApp Cloud: Meta maneja el preview server-side, la URL va limpia.
         const eur = Number(this.amount).toFixed(2);
-        const text = this.bareLinkOnly
-          ? `**${data.url}**`
-          : `💳 Podés abonar ${eur} € (${this.concept.trim()}) de forma segura acá:\n\n${data.url}`;
+        const linkPart = this.bareLinkOnly ? `**${data.url}**` : data.url;
+        const text = `💳 Podés abonar ${eur} € (${this.concept.trim()}) de forma segura acá:\n\n${linkPart}`;
         this.$emit('insertPaymentLink', text);
         useAlert(`Link de pago generado por ${eur} €`);
         this.closeModal();
