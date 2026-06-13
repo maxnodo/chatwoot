@@ -24,6 +24,14 @@ export default {
       type: Number,
       default: 0,
     },
+    // NODO PATCH 9: en Evolution (Baileys) un mensaje con texto + URL rompe el
+    // envío (el link preview falla con URLs de Stripe). En ese canal mandamos
+    // SOLO la URL aislada. En WhatsApp Cloud (Meta maneja el preview) va el
+    // texto descriptivo + link sin problema.
+    bareLinkOnly: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['insertPaymentLink'],
   data() {
@@ -75,9 +83,13 @@ export default {
           useAlert(`No se pudo crear el link de pago: ${detail}`);
           return;
         }
-        // Texto que se inserta en el mensaje
+        // Texto que se inserta en el mensaje.
+        // Evolution (Baileys): texto+URL juntos rompen el envío → solo la URL.
+        // WhatsApp Cloud: texto descriptivo + URL sin problema.
         const eur = Number(this.amount).toFixed(2);
-        const text = `💳 Podés abonar ${eur} € (${this.concept.trim()}) de forma segura acá:\n${data.url}`;
+        const text = this.bareLinkOnly
+          ? data.url
+          : `💳 Podés abonar ${eur} € (${this.concept.trim()}) de forma segura acá:\n\n${data.url}`;
         this.$emit('insertPaymentLink', text);
         useAlert(`Link de pago generado por ${eur} €`);
         this.closeModal();

@@ -378,7 +378,9 @@ export default {
         "
         :conversation-id="conversationId"
       />
-      <!-- NODO PATCH 9: link de pago Stripe (Evolution + WhatsApp Cloud) -->
+      <!-- NODO PATCH 9: link de pago Stripe (Evolution + WhatsApp Cloud).
+           En Evolution (isAPIInbox) se inserta solo la URL: un mensaje con
+           texto + URL rompe el envío vía Baileys. -->
       <PaymentLinkButton
         v-if="
           (isAPIInbox || isAWhatsAppChannel) &&
@@ -386,6 +388,7 @@ export default {
           !isEditorDisabled
         "
         :conversation-id="conversationId"
+        :bare-link-only="isAPIInbox"
         @insert-payment-link="$emit('insertPaymentLink', $event)"
       />
       <transition name="modal-fade">
