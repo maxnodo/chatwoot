@@ -40,6 +40,8 @@ export default {
       amount: '',
       concept: '',
       isLoading: false,
+      // El botón se oculta hasta confirmar que la cuenta tiene pagos activos.
+      paymentsEnabled: false,
     };
   },
   computed: {
@@ -49,7 +51,31 @@ export default {
       return amt > 0 && amt <= 10000 && this.concept.trim().length > 0;
     },
   },
+  mounted() {
+    this.checkPaymentsEnabled();
+  },
+  watch: {
+    accountId() {
+      this.checkPaymentsEnabled();
+    },
+  },
   methods: {
+    // Consulta si la cuenta tiene un provider de pagos activo (gating per-account,
+    // controlado desde la tabla nodo_payment_providers — sin feature flag).
+    async checkPaymentsEnabled() {
+      this.paymentsEnabled = false;
+      if (!this.accountId) return;
+      try {
+        const res = await fetch(
+          `${SUPABASE_FN_URL}?account_id=${this.accountId}`,
+          { headers: { Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
+        );
+        const data = await res.json();
+        this.paymentsEnabled = !!(data && data.enabled);
+      } catch {
+        this.paymentsEnabled = false;
+      }
+    },
     openModal() {
       this.amount = '';
       this.concept = '';
@@ -107,7 +133,7 @@ export default {
 </script>
 
 <template>
-  <span>
+  <span v-if="paymentsEnabled">
     <NextButton
       v-tooltip.top-end="'Crear link de pago'"
       icon="i-ph-currency-eur"
