@@ -59,10 +59,11 @@ jobs:
             PISA_LATEST="false"  # NO pisar :latest desde ramas de rebase
           else
             # Rama productiva nodo-customizations.
-            # NODO: tras rebase a v4.14.0, base actualizada. Para futuros upgrades,
-            # bumpear acá la versión upstream + corresponder con el tag IMG.
-            CW_VERSION="v4.14.0"
-            IMG_TAG="v4.14.0-nodo.${{ github.run_number }}"
+            # NODO: tras cutover a v4.14.2 (13-jun-2026), base actualizada con
+            # Patch 9 (Payment Links) + todos los fixes de Evolution. Para
+            # futuros upgrades, bumpear acá la versión upstream + el tag IMG.
+            CW_VERSION="v4.14.2"
+            IMG_TAG="v4.14.2-nodo.${{ github.run_number }}"
             PISA_LATEST="true"
           fi
           echo "cw_version=$CW_VERSION" >> "$GITHUB_OUTPUT"
