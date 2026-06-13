@@ -84,11 +84,14 @@ export default {
           return;
         }
         // Texto que se inserta en el mensaje.
-        // Evolution (Baileys): texto+URL juntos rompen el envío → solo la URL.
-        // WhatsApp Cloud: texto descriptivo + URL sin problema.
+        // Evolution (Baileys): si la URL va "limpia", Baileys intenta generar
+        // el link preview de Stripe → falla → el mensaje NO se envía. Envuelta
+        // en negrita markdown (**url**) Baileys NO la detecta como URL, no
+        // intenta preview, y el mensaje se entrega. (Comprobado en prod.)
+        // WhatsApp Cloud: Meta maneja el preview server-side, va texto + link.
         const eur = Number(this.amount).toFixed(2);
         const text = this.bareLinkOnly
-          ? data.url
+          ? `**${data.url}**`
           : `💳 Podés abonar ${eur} € (${this.concept.trim()}) de forma segura acá:\n\n${data.url}`;
         this.$emit('insertPaymentLink', text);
         useAlert(`Link de pago generado por ${eur} €`);
