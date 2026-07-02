@@ -126,6 +126,12 @@ class Conversation < ApplicationRecord
 
   delegate :auto_resolve_after, to: :account
 
+  # NODO PATCH 10: la lista de conversaciones precalcula el unread_count en una
+  # sola query batch (ConversationsController#preload_conversation_list_data).
+  # Message#conversation_push_event_data lo usa si está seteado para no
+  # re-consultar messages por cada fila serializada.
+  attr_accessor :nodo_precomputed_unread_count
+
   def can_reply?
     Conversations::MessageWindowService.new(self).can_reply?
   end

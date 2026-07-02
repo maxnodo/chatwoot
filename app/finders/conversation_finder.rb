@@ -196,8 +196,12 @@ class ConversationFinder
   end
 
   def conversations_base_query
+    # NODO PATCH 10: :account y { inbox: :channel } precargados — el partial
+    # enterprise consulta account.feature_enabled? y can_reply? toca el channel
+    # polimórfico; sin precarga son 2 queries por conversación (DB remota ~17ms).
     @conversations.includes(
-      :taggings, :inbox, { assignee: { avatar_attachment: [:blob] } }, { contact: { avatar_attachment: [:blob] } }, :team, :contact_inbox
+      :taggings, :account, { inbox: :channel }, { assignee: { avatar_attachment: [:blob] } }, { contact: { avatar_attachment: [:blob] } }, :team,
+      :contact_inbox
     )
   end
 

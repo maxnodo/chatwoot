@@ -12,6 +12,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     result = conversation_finder.perform
     @conversations = result[:conversations]
     @conversations_count = result[:count]
+    preload_conversation_list_data
   end
 
   def meta
@@ -51,6 +52,7 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     result = ::Conversations::FilterService.new(params.permit!, current_user, current_account).perform
     @conversations = result[:conversations]
     @conversations_count = result[:count]
+    preload_conversation_list_data
   rescue CustomExceptions::CustomFilter::InvalidAttribute,
          CustomExceptions::CustomFilter::InvalidOperator,
          CustomExceptions::CustomFilter::InvalidQueryOperator,
@@ -145,6 +147,51 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   end
 
   private
+
+  # NODO PATCH 10: el partial _conversation.json.jbuilder dispara 3-6 queries
+  # de messages POR conversación (último mensaje, último no-actividad, unread
+  # count — y push_event_data re-consulta conversación y contact_inbox). Con la
+  # DB remota (~17ms/query) eso domina el tiempo de la lista. Acá se resuelven
+  # en 3 queries batch para toda la página. El partial cae al comportamiento
+  # original cuando estas variables no están (show/create/update, websockets).
+  def preload_conversation_list_data
+    conversation_records = @conversations.to_a
+    ids = conversation_records.map(&:id)
+    return if ids.blank?
+
+    by_id = conversation_records.index_by(&:id)
+    scoped = Message.where(conversation_id: ids, account_id: Current.account.id)
+
+    @nodo_last_messages = scoped
+                          .select('DISTINCT ON (messages.conversation_id) messages.*')
+                          .order('messages.conversation_id, messages.id DESC')
+                          .preload(:attachments, :sender)
+                          .index_by(&:conversation_id)
+
+    @nodo_last_non_activity_messages = scoped
+                                       .where.not(message_type: :activity)
+                                       .select('DISTINCT ON (messages.conversation_id) messages.*')
+                                       .order('messages.conversation_id, messages.created_at DESC')
+                                       .preload(:attachments, :sender)
+                                       .index_by(&:conversation_id)
+
+    unread_counts = scoped.where(message_type: :incoming)
+                          .joins(:conversation)
+                          .where('conversations.agent_last_seen_at IS NULL OR messages.created_at > conversations.agent_last_seen_at')
+                          .group(:conversation_id)
+                          .count
+
+    # Mismo tope que Conversation#unread_incoming_messages (.last(10).count)
+    conversation_records.each do |conversation_record|
+      conversation_record.nodo_precomputed_unread_count = [unread_counts.fetch(conversation_record.id, 0), 10].min
+    end
+
+    # Reasignar a los mensajes del batch la conversación YA cargada (con
+    # contact_inbox precargado y unread precalculado): push_event_data la lee.
+    (@nodo_last_messages.values + @nodo_last_non_activity_messages.values).each do |message|
+      message.association(:conversation).target = by_id[message.conversation_id]
+    end
+  end
 
   def permitted_update_params
     # TODO: Move the other conversation attributes to this method and remove specific endpoints for each attribute
