@@ -8,6 +8,13 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
   # transcription.
   TRANSCRIPTION_BYTE_LIMIT = 25_000_000
 
+  # NODO PATCH 11: el endpoint de transcripción de OpenAI valida por EXTENSIÓN
+  # y rechaza las variantes poco comunes con 400 (que el job descarta en
+  # silencio). Mismo contenedor/codec con el nombre "aceptado": las notas de
+  # voz de Evolution llegan como audio/opus y Rails las nombra .oga → 400;
+  # renombradas .ogg transcriben perfecto (igual que las de WhatsApp Cloud).
+  EXTENSION_NORMALIZATION = { 'oga' => 'ogg', 'opus' => 'ogg', 'mpga' => 'mp3' }.freeze
+
   attr_reader :attachment, :message, :account
 
   def initialize(attachment)
@@ -50,12 +57,14 @@ class Messages::AudioTranscriptionService< Llm::LegacyBaseOpenAiService
     blob = attachment.file.blob
     temp_dir = Rails.root.join('tmp/uploads/audio-transcriptions')
     FileUtils.mkdir_p(temp_dir)
-    temp_file_name = "#{blob.key}-#{blob.filename}"
 
-    if blob.filename.extension_without_delimiter.blank?
-      extension = extension_from_content_type(blob.content_type)
-      temp_file_name = "#{temp_file_name}.#{extension}" if extension.present?
-    end
+    # NODO PATCH 11: resolver SIEMPRE la extensión final (del filename o del
+    # content_type) y normalizarla a una que OpenAI acepte.
+    extension = blob.filename.extension_without_delimiter.presence || extension_from_content_type(blob.content_type)
+    extension = EXTENSION_NORMALIZATION.fetch(extension.to_s.downcase, extension) if extension.present?
+
+    temp_file_name = "#{blob.key}-#{blob.filename.base}"
+    temp_file_name = "#{temp_file_name}.#{extension}" if extension.present?
 
     temp_file_path = File.join(temp_dir, temp_file_name)
 
