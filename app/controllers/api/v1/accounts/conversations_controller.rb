@@ -162,22 +162,25 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
     by_id = conversation_records.index_by(&:id)
     scoped = Message.where(conversation_id: ids, account_id: Current.account.id)
 
+    # reorder (no order): Message tiene default_scope order(created_at) que
+    # rompe el DISTINCT ON y el GROUP BY si no se descarta.
     @nodo_last_messages = scoped
                           .select('DISTINCT ON (messages.conversation_id) messages.*')
-                          .order('messages.conversation_id, messages.id DESC')
+                          .reorder('messages.conversation_id, messages.id DESC')
                           .preload(:attachments, :sender)
                           .index_by(&:conversation_id)
 
     @nodo_last_non_activity_messages = scoped
                                        .where.not(message_type: :activity)
                                        .select('DISTINCT ON (messages.conversation_id) messages.*')
-                                       .order('messages.conversation_id, messages.created_at DESC')
+                                       .reorder('messages.conversation_id, messages.created_at DESC')
                                        .preload(:attachments, :sender)
                                        .index_by(&:conversation_id)
 
     unread_counts = scoped.where(message_type: :incoming)
                           .joins(:conversation)
                           .where('conversations.agent_last_seen_at IS NULL OR messages.created_at > conversations.agent_last_seen_at')
+                          .reorder(nil)
                           .group(:conversation_id)
                           .count
 
