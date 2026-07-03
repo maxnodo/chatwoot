@@ -76,7 +76,10 @@ export const actions = {
       const response = await CampaignsAPI.create(campaignObj);
       commit(types.ADD_CAMPAIGN, response.data);
     } catch (error) {
-      throw new Error(error);
+      // NODO PATCH 12: rethrow del error ORIGINAL de axios. `new Error(error)`
+      // destruía error.response y los dialogs no podían mostrar el mensaje
+      // real del backend (quedaba el "422" crudo).
+      throw error;
     } finally {
       commit(types.SET_CAMPAIGN_UI_FLAG, { isCreating: false });
     }

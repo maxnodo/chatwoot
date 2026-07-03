@@ -221,7 +221,10 @@
       },
       "QUOTA": {
         "AVAILABLE": "You have {available} messages left in the next 24h ({used}/{cap} used).",
-        "ACTIVE_CAMPAIGN": "There is already an active campaign in this inbox: '{title}' ({pending} pending). Wait for it to finish before creating another."
+        "ACTIVE_CAMPAIGN": "'{title}' is running on this channel ({pending} pending messages). To protect your number, only one campaign can be active per channel.",
+        "ACTIVE_CAMPAIGN_SCHEDULED": "'{title}' is scheduled for {time} on this channel. To protect your number, only one campaign can be active per channel.",
+        "WAIT_HINT": "You'll be able to create the next one when it finishes.",
+        "CHECK_FAILED": "Couldn't check the channel status. You can still try to create — the server runs the final validation."
       },
       "CREATE": {
         "TITLE": "New Evolution campaign",

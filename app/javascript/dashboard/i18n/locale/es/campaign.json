@@ -221,7 +221,10 @@
       },
       "QUOTA": {
         "AVAILABLE": "Te quedan {available} mensajes disponibles en las próximas 24h ({used}/{cap} usados).",
-        "ACTIVE_CAMPAIGN": "Ya hay una campaña activa en este inbox: '{title}' ({pending} mensajes pendientes). Esperá a que termine para crear otra."
+        "ACTIVE_CAMPAIGN": "«{title}» está en curso en este canal ({pending} mensajes pendientes). Para proteger tu número, solo puede haber una campaña activa por canal.",
+        "ACTIVE_CAMPAIGN_SCHEDULED": "«{title}» está programada para el {time} en este canal. Para proteger tu número, solo puede haber una campaña activa por canal.",
+        "WAIT_HINT": "Vas a poder crear la siguiente cuando termine.",
+        "CHECK_FAILED": "No se pudo verificar el estado del canal. Podés intentar crear igual — la validación final la hace el servidor."
       },
       "CREATE": {
         "TITLE": "Crear campaña Evolution",

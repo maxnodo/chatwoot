@@ -20,7 +20,7 @@ import { useI18n } from 'vue-i18n';
 import { useVuelidate } from '@vuelidate/core';
 import { required, minLength, url, maxLength } from '@vuelidate/validators';
 import { useMapGetter } from 'dashboard/composables/store';
-import { useStore } from 'dashboard/composables/store';
+import CampaignsAPI from 'dashboard/api/campaigns';
 
 import Input from 'dashboard/components-next/input/Input.vue';
 import TextArea from 'dashboard/components-next/textarea/TextArea.vue';
@@ -31,7 +31,6 @@ import TagMultiSelectComboBox from 'dashboard/components-next/combobox/TagMultiS
 const emit = defineEmits(['submit', 'cancel']);
 
 const { t } = useI18n();
-const store = useStore();
 
 const formState = {
   uiFlags: useMapGetter('campaigns/getUIFlags'),
@@ -98,18 +97,17 @@ const quota = ref(null);
 const quotaError = ref(null);
 let quotaTimer = null;
 
-const accountId = computed(() => store.getters.getCurrentAccountId);
-
+// NODO PATCH 12: usar el cliente API autenticado del dashboard. El fetch plano
+// anterior iba sin headers de auth → 401 silencioso → quota null → el form
+// quedaba SIN protección preventiva y el usuario llegaba al 422 del backend.
 const fetchQuota = async () => {
-  if (!state.inboxId || !accountId.value) {
+  if (!state.inboxId) {
     quota.value = null;
     return;
   }
   try {
-    const path = `/api/v1/accounts/${accountId.value}/inboxes/${state.inboxId}/api_campaign_quota`;
-    const res = await fetch(path, { credentials: 'include' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    quota.value = await res.json();
+    const { data } = await CampaignsAPI.getApiCampaignQuota(state.inboxId);
+    quota.value = data;
     quotaError.value = null;
   } catch (e) {
     quotaError.value = String(e?.message || e);
@@ -134,6 +132,24 @@ onBeforeUnmount(() => {
 const hasActiveCampaign = computed(
   () => !!quota.value?.active_campaign
 );
+
+// NODO PATCH 12: si la campaña activa todavía no despachó nada, comunicamos
+// "programada para las HH:MM" en vez de "N mensajes pendientes".
+const activeCampaignIsScheduled = computed(() => {
+  const ac = quota.value?.active_campaign;
+  return !!ac?.scheduled_at && !ac?.pending_count;
+});
+
+const activeCampaignTime = computed(() => {
+  const iso = quota.value?.active_campaign?.scheduled_at;
+  if (!iso) return '';
+  return new Date(iso).toLocaleString(undefined, {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+});
 
 const slotsAvailable = computed(() => quota.value?.slots_available ?? null);
 const slotsUsed = computed(() => quota.value?.slots_used ?? null);
@@ -242,27 +258,40 @@ const handleSubmit = async () => {
       />
     </div>
 
-    <!-- Quota indicator (NODO PATCH 6) -->
+    <!-- Quota indicator (NODO PATCH 6 · auth fix + copy PATCH 12) -->
     <div
-      v-if="state.inboxId && quota"
-      class="text-xs px-3 py-2 rounded-md"
-      :class="hasActiveCampaign
-        ? 'bg-n-amber-3 text-n-amber-12'
-        : 'bg-n-alpha-2 text-n-slate-11'"
+      v-if="state.inboxId && quota && hasActiveCampaign"
+      class="text-xs px-3 py-2 rounded-md bg-n-amber-3 text-n-amber-12 flex flex-col gap-1"
     >
-      <template v-if="hasActiveCampaign">
-        ⚠️ {{ t('CAMPAIGN.EVOLUTION.QUOTA.ACTIVE_CAMPAIGN', {
-          title: quota.active_campaign.title,
-          pending: quota.active_campaign.pending_count,
-        }) }}
-      </template>
-      <template v-else>
-        📊 {{ t('CAMPAIGN.EVOLUTION.QUOTA.AVAILABLE', {
-          available: slotsAvailable,
-          used: slotsUsed,
-          cap: dailyCap,
-        }) }}
-      </template>
+      <span class="font-medium">
+        ⚠️
+        {{ activeCampaignIsScheduled
+          ? t('CAMPAIGN.EVOLUTION.QUOTA.ACTIVE_CAMPAIGN_SCHEDULED', {
+            title: quota.active_campaign.title,
+            time: activeCampaignTime,
+          })
+          : t('CAMPAIGN.EVOLUTION.QUOTA.ACTIVE_CAMPAIGN', {
+            title: quota.active_campaign.title,
+            pending: quota.active_campaign.pending_count,
+          }) }}
+      </span>
+      <span>{{ t('CAMPAIGN.EVOLUTION.QUOTA.WAIT_HINT') }}</span>
+    </div>
+    <div
+      v-else-if="state.inboxId && quota"
+      class="text-xs px-3 py-2 rounded-md bg-n-alpha-2 text-n-slate-11"
+    >
+      📊 {{ t('CAMPAIGN.EVOLUTION.QUOTA.AVAILABLE', {
+        available: slotsAvailable,
+        used: slotsUsed,
+        cap: dailyCap,
+      }) }}
+    </div>
+    <div
+      v-else-if="state.inboxId && quotaError"
+      class="text-xs px-3 py-2 rounded-md bg-n-alpha-2 text-n-slate-11"
+    >
+      {{ t('CAMPAIGN.EVOLUTION.QUOTA.CHECK_FAILED') }}
     </div>
 
     <div class="flex flex-col gap-1">

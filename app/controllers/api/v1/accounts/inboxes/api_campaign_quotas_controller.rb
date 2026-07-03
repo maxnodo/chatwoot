@@ -100,7 +100,10 @@ class Api::V1::Accounts::Inboxes::ApiCampaignQuotasController < Api::V1::Account
     {
       id: campaign.id,
       title: campaign.title,
-      pending_count: pending_count
+      pending_count: pending_count,
+      # NODO PATCH 12: el form muestra "programada para las HH:MM" cuando la
+      # campaña activa todavía no empezó a despachar.
+      scheduled_at: campaign.scheduled_at&.iso8601
     }
   end
 end
