@@ -270,6 +270,55 @@
           }
         }
       }
+    },
+    "TELEGRAM": {
+      "HEADER_TITLE": "Telegram Campaigns",
+      "NEW_CAMPAIGN": "New campaign",
+      "EMPTY_STATE": {
+        "TITLE": "No Telegram campaigns yet",
+        "SUBTITLE": "Launch a campaign over WhatsApp Telegram. Free text, optional image via URL, cap 200/24h per inbox. Click 'New campaign' to start."
+      },
+      "CREATE": {
+        "TITLE": "New Telegram campaign",
+        "FORM": {
+          "TITLE": {
+            "LABEL": "Title",
+            "PLACEHOLDER": "e.g. May 2026 Promo",
+            "ERROR": "Title is required"
+          },
+          "MESSAGE": {
+            "LABEL": "Message",
+            "PLACEHOLDER": "Text every contact will receive…",
+            "HINT": "You can use variables: {{nombre}}, {{nombre_completo}}, {{empresa}}. They are filled per contact.",
+            "ERROR": "Message is required"
+          },
+          "INBOX": {
+            "LABEL": "Telegram inbox",
+            "PLACEHOLDER": "Select an inbox",
+            "ERROR": "Inbox is required"
+          },
+          "AUDIENCE": {
+            "LABEL": "Audience (labels)",
+            "PLACEHOLDER": "Select the labels",
+            "ERROR": "Audience is required"
+          },
+          "SCHEDULED_AT": {
+            "LABEL": "Schedule",
+            "PLACEHOLDER": "Select date and time",
+            "ERROR": "Scheduled time is required"
+          },
+          "BUTTONS": {
+            "CREATE": "Create",
+            "CANCEL": "Cancel"
+          },
+          "API": {
+            "SUCCESS_MESSAGE": "Telegram campaign created successfully",
+            "ERROR_MESSAGE": "There was an error. Please try again."
+          },
+          "REACH_NOTE": "Only audience contacts who already talked to the bot will receive the message (Telegram rule). The rest are skipped automatically."
+        },
+        "DESC": "Reach your whole Telegram base. Only contacts who already talked to the bot will receive the message."
+      }
     }
   }
 }

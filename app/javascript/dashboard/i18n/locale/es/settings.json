@@ -350,6 +350,7 @@
     "SMS": "SMS",
     "WHATSAPP": "WhatsApp",
     "EVOLUTION": "Evolution",
+    "TELEGRAM_CAMPAIGNS": "Telegram",
     "CAMPAIGNS": "Campañas",
     "ONGOING": "En Curso",
     "ONE_OFF": "One Off",

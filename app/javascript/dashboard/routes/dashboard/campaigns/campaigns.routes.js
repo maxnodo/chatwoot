@@ -6,6 +6,8 @@ import SMSCampaignsPage from './pages/SMSCampaignsPage.vue';
 import WhatsAppCampaignsPage from './pages/WhatsAppCampaignsPage.vue';
 // NODO PATCH 6
 import EvolutionCampaignsPage from './pages/EvolutionCampaignsPage.vue';
+// NODO PATCH 13
+import TelegramCampaignsPage from './pages/TelegramCampaignsPage.vue';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 const meta = {
@@ -71,6 +73,17 @@ const campaignsRoutes = {
             featureFlag: FEATURE_FLAGS.API_CAMPAIGNS,
           },
           component: EvolutionCampaignsPage,
+        },
+        // NODO PATCH 13: tab Telegram (Channel::Telegram) — mismo flag que
+        // Evolution (techo del bigint de features, sin bits nuevos)
+        {
+          path: 'telegram',
+          name: 'campaigns_telegram_index',
+          meta: {
+            ...meta,
+            featureFlag: FEATURE_FLAGS.API_CAMPAIGNS,
+          },
+          component: TelegramCampaignsPage,
         },
       ],
     },

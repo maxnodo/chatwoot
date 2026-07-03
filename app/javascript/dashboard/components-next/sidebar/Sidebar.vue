@@ -591,6 +591,12 @@ const menuItems = computed(() => {
           label: t('SIDEBAR.EVOLUTION'),
           to: accountScopedRoute('campaigns_evolution_index'),
         },
+        // NODO PATCH 13: item Telegram en submenu de Campañas
+        {
+          name: 'TelegramCampaigns',
+          label: t('SIDEBAR.TELEGRAM_CAMPAIGNS'),
+          to: accountScopedRoute('campaigns_telegram_index'),
+        },
       ],
     },
     {

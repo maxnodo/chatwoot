@@ -49,6 +49,11 @@ export const getters = {
     const apiChannelTypes = [INBOX_TYPES.API];
     return _getters.getCampaigns(CAMPAIGN_TYPES.ONE_OFF, apiChannelTypes);
   },
+  // NODO PATCH 13: campañas para Channel::Telegram en tab dedicado
+  getTelegramCampaigns: (_state, _getters) => {
+    const telegramChannelTypes = [INBOX_TYPES.TELEGRAM];
+    return _getters.getCampaigns(CAMPAIGN_TYPES.ONE_OFF, telegramChannelTypes);
+  },
   getLiveChatCampaigns: (_state, _getters) => {
     const liveChatChannelTypes = [INBOX_TYPES.WEB];
     return _getters.getCampaigns(CAMPAIGN_TYPES.ONGOING, liveChatChannelTypes);

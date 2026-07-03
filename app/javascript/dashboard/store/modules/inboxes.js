@@ -160,6 +160,12 @@ export const getters = {
       item => item.channel_type === INBOX_TYPES.API
     );
   },
+  // NODO PATCH 13: inboxes Channel::Telegram para tab de Campañas Telegram
+  getTelegramInboxes($state) {
+    return $state.records.filter(
+      item => item.channel_type === INBOX_TYPES.TELEGRAM
+    );
+  },
   dialogFlowEnabledInboxes($state) {
     return $state.records.filter(
       item => item.channel_type !== INBOX_TYPES.EMAIL
