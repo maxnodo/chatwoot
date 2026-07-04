@@ -37,6 +37,10 @@ class SuperAdmin::AccountsController < SuperAdmin::ApplicationController
     permitted_params = super
     permitted_params[:limits] = permitted_params[:limits].to_h.compact
     permitted_params[:selected_feature_flags] = params[:enabled_features].keys.map(&:to_sym) if params[:enabled_features].present?
+    # NODO PATCH 15: el toggle "Nodo Campaigns — Telegram" vive en la grilla de
+    # features pero se guarda en settings JSONB (store_accessor) — permit manual
+    # porque ya no está en FORM_ATTRIBUTES del dashboard.
+    permitted_params[:telegram_campaigns] = params[:account][:telegram_campaigns] if params.dig(:account, :telegram_campaigns).present?
     permitted_params
   end
 

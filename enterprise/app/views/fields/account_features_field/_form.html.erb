@@ -30,5 +30,18 @@
         <span><%= check_box "enabled_features", "feature_#{feature_key}", { checked: val, disabled: should_disable, class: "h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-600" }, true, false %></span>
       </div>
     <% end %>
+
+    <%# NODO PATCH 15: add-on por settings JSONB (el bitmask de features no tiene
+        bits libres). Mismo look que las features premium, pero se guarda en
+        account.settings.telegram_campaigns. %>
+    <div class="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm outline outline-1 outline-n-container">
+      <div class="flex items-center gap-2">
+        <span class="text-amber-500">
+          <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M480 224l-186.828 7.487L401.688 64l-59.247-32L256 208 169.824 32l-59.496 32 108.5 167.487L32 224v64l185.537-10.066L113.65 448l55.969 32L256 304l86.381 176 55.949-32-103.867-170.066L480 288z" fill="currentColor"/></svg>
+        </span>
+        <span class="text-sm text-slate-700">Nodo Campaigns — Telegram</span>
+      </div>
+      <span><%= f.check_box :telegram_campaigns, { checked: f.object.telegram_campaigns_enabled?, class: "h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-600" }, '1', '0' %></span>
+    </div>
   </div>
 </div>

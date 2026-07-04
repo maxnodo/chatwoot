@@ -90,7 +90,6 @@ class AccountDashboard < Administrate::BaseDashboard
     name
     locale
     status
-    telegram_campaigns
   ] + enterprise_form_attributes).freeze
 
   # COLLECTION_FILTERS
