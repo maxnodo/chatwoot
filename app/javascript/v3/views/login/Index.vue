@@ -230,21 +230,19 @@ export default {
 
 <template>
   <main
-    class="flex flex-col w-full min-h-screen py-20 bg-n-brand/5 dark:bg-n-background sm:px-6 lg:px-8"
+    class="nodo-login flex flex-col w-full min-h-screen py-20 bg-[#FAFAFA] dark:bg-n-background sm:px-6 lg:px-8"
   >
     <section class="max-w-5xl mx-auto">
-      <img
-        :src="globalConfig.logo"
-        :alt="globalConfig.installationName"
-        class="block w-auto h-8 mx-auto dark:hidden"
-      />
-      <img
-        v-if="globalConfig.logoDark"
-        :src="globalConfig.logoDark"
-        :alt="globalConfig.installationName"
-        class="hidden w-auto h-8 mx-auto dark:block"
-      />
-      <h2 class="mt-6 text-3xl font-medium text-center text-n-slate-12">
+      <!-- NODO PATCH 14: logo tipográfico de marca (handoff "Opción 1 — Minimal
+           refinado" de Claude Design). Reemplaza el logo-imagen configurable. -->
+      <p
+        class="text-[30px] leading-none font-extrabold tracking-[-0.02em] text-center text-[#0B1220] dark:text-white select-none"
+      >
+        nodo<span class="text-[#FB7185]">.</span>
+      </p>
+      <h2
+        class="mt-3.5 text-2xl font-bold tracking-[-0.01em] text-center text-[#0B1220] dark:text-n-slate-12"
+      >
         {{ replaceInstallationName($t('LOGIN.TITLE')) }}
       </h2>
       <p v-if="showSignupLink" class="mt-3 text-sm text-center text-n-slate-11">
@@ -267,7 +265,7 @@ export default {
     <!-- Regular Login Section -->
     <section
       v-else
-      class="bg-white shadow sm:mx-auto mt-11 sm:w-full sm:max-w-lg dark:bg-n-solid-2 p-11 sm:shadow-lg sm:rounded-lg"
+      class="bg-white sm:mx-auto mt-11 w-full sm:max-w-[440px] dark:bg-n-solid-2 p-9 rounded-2xl border border-[#E7E9EE] dark:border-n-weak shadow-[0_6px_24px_rgba(11,18,32,0.05)]"
       :class="{
         'mb-8 mt-15': !showGoogleOAuth,
         'animate-wiggle': loginApi.hasErrored,
@@ -347,5 +345,54 @@ export default {
         <Spinner color-scheme="primary" size="" />
       </div>
     </section>
+
+    <!-- NODO PATCH 14: línea de ayuda del handoff -->
+    <p
+      v-if="!mfaRequired"
+      class="mt-6 text-[13px] text-center text-[#475569] dark:text-n-slate-11"
+    >
+      {{ $t('LOGIN.NODO_HELP.TEXT') }}
+      <a
+        href="mailto:administracion@otronodo.com"
+        class="font-semibold text-[#4F46E5] hover:text-[#4338CA]"
+      >
+        {{ $t('LOGIN.NODO_HELP.LINK') }}
+      </a>
+    </p>
   </main>
 </template>
+
+<style scoped>
+/* NODO PATCH 14: login "Opción 1 — Minimal refinado" (handoff Claude Design).
+   Wash radial indigo de fondo + inputs 46px radio 10 + focus ring indigo +
+   botón primario indigo 48px. Solo capa visual; la lógica no se toca. */
+.nodo-login {
+  background-image: radial-gradient(
+    900px 480px at 50% -10%,
+    rgba(79, 70, 229, 0.06),
+    transparent 70%
+  );
+}
+
+.nodo-login :deep(form input) {
+  height: 46px;
+  border-radius: 10px;
+}
+
+.nodo-login :deep(form input:focus) {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+  outline: none;
+}
+
+.nodo-login :deep(button[type='submit']) {
+  height: 48px;
+  border-radius: 10px;
+  background-color: #4f46e5;
+  font-weight: 600;
+}
+
+.nodo-login :deep(button[type='submit']:hover:not(:disabled)) {
+  background-color: #4338ca;
+}
+</style>
