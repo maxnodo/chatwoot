@@ -45,7 +45,8 @@ class Telegram::OneoffCampaignService
     raise 'Invalid campaign — not Channel::Telegram inbox' unless inbox.inbox_type == 'Telegram'
     raise 'Invalid campaign — not one_off' unless campaign.one_off?
     raise 'Already processed' if campaign.completed?
-    raise 'Nodo Campaigns feature not enabled' unless account.feature_enabled?(:api_campaign)
+    # NODO PATCH 15: add-on propio (settings JSONB), separado del flag de Evolution
+    raise 'Telegram Campaigns add-on not enabled' unless account.telegram_campaigns_enabled?
   end
 
   # Misma lógica dual de Patch 6 (labels de contacto + labels de conversación),

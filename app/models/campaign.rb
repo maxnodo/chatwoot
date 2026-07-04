@@ -93,9 +93,9 @@ class Campaign < ApplicationRecord
       # no 'Api' — ver app/models/channel/api.rb#name. El match tiene que ser exacto.
       Api::OneoffCampaignService.new(campaign: self).perform if account.feature_enabled?(:api_campaign)
     when 'Telegram'
-      # NODO PATCH 13: Telegram campaigns. Reusa el flag api_campaign (el bitmask
-      # de features está en el techo del bigint — no se pueden sumar bits).
-      Telegram::OneoffCampaignService.new(campaign: self).perform if account.feature_enabled?(:api_campaign)
+      # NODO PATCH 15: add-on propio por workspace (settings.telegram_campaigns),
+      # separado del flag api_campaign de Evolution.
+      Telegram::OneoffCampaignService.new(campaign: self).perform if account.telegram_campaigns_enabled?
     end
   end
 
@@ -128,12 +128,15 @@ class Campaign < ApplicationRecord
   end
 
   # NODO PATCH 6: si es campaign Evolution, validar que el feature flag api_campaign este enabled
-  # NODO PATCH 13: mismo flag gatea las campañas Telegram (sin bit nuevo por el techo del bigint)
+  # NODO PATCH 15: Telegram se gatea por separado (settings.telegram_campaigns)
   def validate_api_campaign_feature_flag
-    return unless inbox && ['API', 'Telegram'].include?(inbox.inbox_type)
-    return if account.feature_enabled?(:api_campaign)
+    return unless inbox
 
-    errors.add(:base, 'Nodo Campaigns no esta habilitado en esta cuenta. Pedi la activacion como add-on premium.')
+    if inbox.inbox_type == 'API' && !account.feature_enabled?(:api_campaign)
+      errors.add(:base, 'Evolution Campaigns no esta habilitado en esta cuenta. Pedi la activacion como add-on premium.')
+    elsif inbox.inbox_type == 'Telegram' && !account.telegram_campaigns_enabled?
+      errors.add(:base, 'Telegram Campaigns no esta habilitado en esta cuenta. Pedi la activacion como add-on premium.')
+    end
   end
 
   # NODO PATCH 6: exclusion mutua per-inbox — solo 1 campaign Evolution activa por inbox a la vez.

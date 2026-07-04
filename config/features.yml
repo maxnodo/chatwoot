@@ -190,9 +190,9 @@
 # spread automatico si la audiencia excede 200, exclusion mutua por inbox.
 # Activable como add-on premium desde el panel de Super Admin de Chatwoot.
 - name: api_campaign
-  # NODO PATCH 13: el mismo flag gatea Evolution + Telegram (techo del bigint,
-  # sin bits nuevos). Display renombrado para que el toggle del super admin sea claro.
-  display_name: Nodo Campaigns (Evolution + Telegram)
+  # NODO PATCH 15: Telegram se separó a settings.telegram_campaigns (checkbox
+  # propio en el form de cuenta del super admin). Este flag gatea SOLO Evolution.
+  display_name: Nodo Campaigns — Evolution
   enabled: false
   premium: true
 - name: crm_v2

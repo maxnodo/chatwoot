@@ -54,6 +54,14 @@ class Account < ApplicationRecord
   store_accessor :settings, :captain_models, :captain_features
   store_accessor :settings, :reporting_timezone
   store_accessor :settings, :keep_pending_on_bot_failure
+  # NODO PATCH 15: add-on de campañas Telegram por workspace. Sin bits libres
+  # en el bitmask de features → vive en settings JSONB; checkbox en super admin.
+  store_accessor :settings, :telegram_campaigns
+
+  # NODO PATCH 15: el checkbox del super admin guarda "0"/"1" — cast robusto.
+  def telegram_campaigns_enabled?
+    ActiveModel::Type::Boolean.new.cast(telegram_campaigns).present?
+  end
   store_accessor :settings, :captain_auto_resolve_mode
   include AccountCaptainAutoResolve
 
