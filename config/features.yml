@@ -153,10 +153,16 @@
   display_name: Contact Chatwoot Support Team
   enabled: true
   chatwoot_internal: true
-- name: shopify_integration
-  display_name: Shopify Integration
+# NODO PATCH 17: advanced_assignment ocupaba la posición 64 → su bit (2^63)
+# desborda el signed bigint de accounts.feature_flags y da 500 al habilitarlo.
+# Swap de posición con shopify_integration (ambos bits en 0 en todas las
+# cuentas → sin migración). Regla: máximo 63 features usables; el slot 64
+# queda para un feature muerto. NO agregar features nuevos al final sin
+# revisar esto.
+- name: advanced_assignment
+  display_name: Advanced Assignment
   enabled: false
-  chatwoot_internal: true
+  premium: true
 - name: search_with_gin
   display_name: Search messages with GIN
   enabled: false
@@ -248,7 +254,10 @@
   display_name: Required Conversation Attributes
   enabled: false
   premium: true
-- name: advanced_assignment
-  display_name: Advanced Assignment
+# NODO PATCH 17: slot 64 = bit 2^63, inhabilitable (overflow del signed
+# bigint). Acá vive el feature sacrificado en el swap: shopify_integration
+# (no se usa en Nodo; además requiere SHOPIFY_CLIENT_ID que no existe).
+- name: shopify_integration
+  display_name: Shopify Integration
   enabled: false
-  premium: true
+  chatwoot_internal: true
