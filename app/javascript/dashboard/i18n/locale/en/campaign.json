@@ -276,7 +276,7 @@
       "NEW_CAMPAIGN": "New campaign",
       "EMPTY_STATE": {
         "TITLE": "No Telegram campaigns yet",
-        "SUBTITLE": "Launch a campaign over WhatsApp Telegram. Free text, optional image via URL, cap 200/24h per inbox. Click 'New campaign' to start."
+        "SUBTITLE": "Launch a campaign to your Telegram base: free text with variables, no daily cap. Only reaches contacts who already talked to the bot. Click 'Create campaign' to get started."
       },
       "CREATE": {
         "TITLE": "New Telegram campaign",
@@ -289,7 +289,7 @@
           "MESSAGE": {
             "LABEL": "Message",
             "PLACEHOLDER": "Text every contact will receive…",
-            "HINT": "You can use variables: {{nombre}}, {{nombre_completo}}, {{empresa}}. They are filled per contact.",
+            "HINT": "Optional variables (wrap the name in double braces): nombre, nombre_completo, empresa, email, telefono",
             "ERROR": "Message is required"
           },
           "INBOX": {
