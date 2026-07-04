@@ -226,7 +226,10 @@ export const colors = {
     },
 
     black: '#000000',
-    brand: '#2781F6',
+    // NODO PATCH 16 (Fase 1): color de marca theme-aware. Antes hex fijo
+    // '#2781F6' (azul, igual en light y dark). Ahora vía --brand-color:
+    // indigo #4F46E5 en light, #6366F1 (más brillante para navy) en dark.
+    brand: 'rgb(var(--brand-color) / <alpha-value>)',
     portal: 'var(--dynamic-portal-color)',
     'portal-soft': 'var(--dynamic-portal-color-soft)',
     'portal-faint': 'var(--dynamic-portal-color-faint)',

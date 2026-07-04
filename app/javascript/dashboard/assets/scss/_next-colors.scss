@@ -107,6 +107,8 @@
     --violet-11: 101 85 183;
     --violet-12: 47 38 95;
 
+    // NODO PATCH 16 (Fase 1): marca indigo #4F46E5 en light
+    --brand-color: 79 70 229;
     --background-color: 247 247 247;
     --surface-1: 254 254 254;
     --surface-2: 255 255 255;
@@ -253,10 +255,13 @@
     --violet-11: 169 153 236;
     --violet-12: 226 221 254;
 
-    --background-color: 28 29 32;
-    --surface-1: 20 21 23;
-    --surface-2: 22 23 26;
-    --surface-active: 53 57 66;
+    // NODO PATCH 16 (Fase 1): marca indigo brillante #6366F1 + superficies navy
+    // (base #0B1220 / #121A2B / #1A2436) — mockup "Nodo refinado (Dark)".
+    --brand-color: 99 102 241;
+    --background-color: 11 18 32;
+    --surface-1: 18 26 43;
+    --surface-2: 26 36 54;
+    --surface-active: 45 55 78;
     --background-input-box: 255, 255, 255, 0.02;
     --text-blue: 213 234 255;
     --text-purple: 232 233 254;
@@ -264,10 +269,10 @@
     --border-strong: 46 45 50;
     --border-weak: 31 31 37;
     --border-blue-strong: 201 226 255;
-    --solid-1: 23 23 26;
-    --solid-2: 29 30 36;
-    --solid-3: 44 45 54;
-    --solid-active: 53 57 66;
+    --solid-1: 18 26 43;
+    --solid-2: 26 36 54;
+    --solid-3: 44 53 80;
+    --solid-active: 45 55 78;
     --solid-amber: 56 50 41;
     --solid-blue: 15 57 102;
     --solid-blue-2: 26 29 35;
