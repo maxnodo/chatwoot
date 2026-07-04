@@ -180,12 +180,14 @@ useEmitter(CMD_RESOLVE_CONVERSATION, onCmdResolveConversation);
         v-if="isOpen"
         :label="t('CONVERSATION.HEADER.RESOLVE_ACTION')"
         size="sm"
-        color="slate"
+        color="blue"
         no-animation
         class="ltr:rounded-r-none rtl:rounded-l-none !outline-0"
         :is-loading="isLoading"
         @click="onCmdResolveConversation"
       />
+      <!-- NODO PATCH 16 (Fase 3): Resolver en color de marca (mockup refinado);
+           blue = bg-n-brand → indigo theme-aware. Reabrir/Abrir quedan slate. -->
       <Button
         v-else-if="isResolved"
         :label="t('CONVERSATION.HEADER.REOPEN_ACTION')"
@@ -213,7 +215,7 @@ useEmitter(CMD_RESOLVE_CONVERSATION, onCmdResolveConversation);
         size="sm"
         no-animation
         class="ltr:rounded-l-none rtl:rounded-r-none !outline-0"
-        color="slate"
+        :color="isOpen ? 'blue' : 'slate'"
         trailing-icon
         @click="openDropdown"
       />
