@@ -22,11 +22,15 @@ as defined by the routes in the `admin/` namespace
 
 <div class="border-slate-100 border-r w-56 flex-shrink-0 justify-between h-full flex flex-col" role="navigation">
   <div>
-    <div class="flex mx-4 mb-4 border-slate-100 border-b py-6">
-      <%= link_to image_tag('/brand-assets/logo_thumbnail.svg', alt: 'Chatwoot Admin Dashboard', class: 'h-10'), super_admin_root_url %>
+    <%# NODO PATCH 18 (Fase B): marca Nodo en el encabezado del nav del admin.
+        Logotipo tipografico 'nodo.' (igual al login) + textos de marca. %>
+    <div class="flex items-center mx-4 mb-4 border-slate-100 border-b py-6">
+      <%= link_to super_admin_root_url, class: 'text-[26px] leading-none font-extrabold tracking-[-0.02em] text-[#0B1220] dark:text-white select-none' do %>
+        nodo<span class="text-[#FB7185]">.</span>
+      <% end %>
       <div class="flex flex-col ml-3">
-        <div class="text-sm">Chatwoot <%= Chatwoot.config[:version] %></div>
-        <div class="text-xs text-slate-700 mt-0.5">Super Admin Console</div>
+        <div class="text-sm">Nodo CRM <%= Chatwoot.config[:version] %></div>
+        <div class="text-xs text-slate-700 mt-0.5">Consola de administración</div>
       </div>
     </div>
 
