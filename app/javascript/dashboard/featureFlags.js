@@ -9,8 +9,7 @@ export const FEATURE_FLAGS = {
   WHATSAPP_CAMPAIGNS: 'whatsapp_campaign',
   // NODO PATCH 6: campañas para Channel::Api (Evolution)
   API_CAMPAIGNS: 'api_campaign',
-  WHATSAPP_EMBEDDED_SIGNUP_INBOX_CREATION:
-    'whatsapp_embedded_signup_inbox_creation',
+  WHATSAPP_EMBEDDED_SIGNUP_FLOW: 'whatsapp_embedded_signup_inbox_creation',
   WHATSAPP_MANUAL_TRANSFER: 'whatsapp_manual_transfer',
   WHATSAPP_RECONFIGURE: 'whatsapp_reconfigure',
   CANNED_RESPONSES: 'canned_responses',
