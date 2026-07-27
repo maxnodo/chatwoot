@@ -59,12 +59,13 @@ jobs:
             PISA_LATEST="false"  # NO pisar :latest desde ramas de rebase
           else
             # Rama productiva nodo-customizations.
-            # NODO: tras cutover a v4.16.1 (20-jul-2026). Salto 4.14.2->4.16.0
+            # NODO: tras cutover a v4.16.2 (24-jul-2026). Salto 4.14.2->4.16.0
             # (columnas de extension de feature flags, Patch 17 eliminado) +
-            # patch 4.16.1 (fixes WhatsApp calling / Captain). Para futuros
-            # upgrades, bumpear acá la versión upstream + el tag IMG.
-            CW_VERSION="v4.16.1"
-            IMG_TAG="v4.16.1-nodo.${{ github.run_number }}"
+            # patches 4.16.1 (WhatsApp calling/Captain) y 4.16.2 (WhatsApp
+            # health monitoring, Captain FAQ review, security hardening).
+            # Para futuros upgrades, bumpear acá la versión upstream + el tag IMG.
+            CW_VERSION="v4.16.2"
+            IMG_TAG="v4.16.2-nodo.${{ github.run_number }}"
             PISA_LATEST="true"
           fi
           echo "cw_version=$CW_VERSION" >> "$GITHUB_OUTPUT"
