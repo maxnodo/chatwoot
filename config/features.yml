@@ -268,8 +268,15 @@
   display_name: WhatsApp Embedded Signup Flow
   enabled: false
   column: feature_flags_ext_1
+- name: delayed_automations
+  display_name: Delayed Automations
+  enabled: false
+  column: feature_flags_ext_1
 # NODO PATCH 6/15: feature propio del fork. Va SIEMPRE al final y con
 # column: feature_flags_ext_1 (upstream ya soporta >63 features).
+# OJO v4.17.0: upstream insertó delayed_automations en ext_1 por delante de
+# este flag, asi que api_campaign paso de la posicion 6 (bit 32) a la 7 (bit 64).
+# Requiere migrar los bitmasks de las cuentas que lo tenian encendido.
 - name: api_campaign
   # NODO PATCH 15: Telegram se separó a settings.telegram_campaigns (checkbox
   # propio en el form de cuenta del super admin). Este flag gatea SOLO Evolution.

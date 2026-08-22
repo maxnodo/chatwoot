@@ -8,6 +8,7 @@ import WhatsAppCampaignsPage from './pages/WhatsAppCampaignsPage.vue';
 import EvolutionCampaignsPage from './pages/EvolutionCampaignsPage.vue';
 // NODO PATCH 13
 import TelegramCampaignsPage from './pages/TelegramCampaignsPage.vue';
+import WhatsAppCampaignAnalyticsPage from './pages/WhatsAppCampaignAnalyticsPage.vue';
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 const meta = {
@@ -84,6 +85,15 @@ const campaignsRoutes = {
             featureFlag: FEATURE_FLAGS.API_CAMPAIGNS,
           },
           component: TelegramCampaignsPage,
+        },
+        {
+          path: 'whatsapp/:campaignId/analytics',
+          name: 'campaigns_whatsapp_analytics',
+          meta: {
+            ...meta,
+            featureFlag: FEATURE_FLAGS.WHATSAPP_CAMPAIGNS,
+          },
+          component: WhatsAppCampaignAnalyticsPage,
         },
       ],
     },
