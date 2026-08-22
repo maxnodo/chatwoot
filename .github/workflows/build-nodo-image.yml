@@ -59,13 +59,16 @@ jobs:
             PISA_LATEST="false"  # NO pisar :latest desde ramas de rebase
           else
             # Rama productiva nodo-customizations.
-            # NODO: tras cutover a v4.16.2 (24-jul-2026). Salto 4.14.2->4.16.0
-            # (columnas de extension de feature flags, Patch 17 eliminado) +
-            # patches 4.16.1 (WhatsApp calling/Captain) y 4.16.2 (WhatsApp
-            # health monitoring, Captain FAQ review, security hardening).
+            # NODO: tras cutover a v4.17.0 (22-ago-2026). Trae plantillas de
+            # WhatsApp gestionables, analytics de campañas, Rails 7.2.3.1 e
+            # import desde Freshdesk. OJO: 18 migraciones nuevas de DB.
+            # ⚠️ Este salto MOVIO el bit de api_campaign: upstream insertó
+            # delayed_automations en feature_flags_ext_1 por delante del flag
+            # propio, que pasó de bit 32 a bit 64. Se migraron los bitmasks de
+            # las cuentas 1, 20 y 25 (32 -> 64) en el cutover.
             # Para futuros upgrades, bumpear acá la versión upstream + el tag IMG.
-            CW_VERSION="v4.16.2"
-            IMG_TAG="v4.16.2-nodo.${{ github.run_number }}"
+            CW_VERSION="v4.17.0"
+            IMG_TAG="v4.17.0-nodo.${{ github.run_number }}"
             PISA_LATEST="true"
           fi
           echo "cw_version=$CW_VERSION" >> "$GITHUB_OUTPUT"
