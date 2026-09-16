@@ -18,6 +18,11 @@ on:
         required: true
         default: 'v4.17.1-nodo.1'
 
+      existing_candidate_tag:
+        description: 'Promote an already tested tag without rebuilding (leave empty to build)'
+        required: false
+        default: ''
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -71,7 +76,7 @@ jobs:
           echo "Pisa :latest? $PISA_LATEST"
 
       - name: Build & push image (con :latest)
-        if: steps.tags.outputs.pisa_latest == 'true'
+        if: inputs.existing_candidate_tag == '' && steps.tags.outputs.pisa_latest == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -86,7 +91,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build & push image (solo tag versionado, sin :latest)
-        if: steps.tags.outputs.pisa_latest == 'false'
+        if: inputs.existing_candidate_tag == '' && steps.tags.outputs.pisa_latest == 'false'
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -98,6 +103,18 @@ jobs:
             ${{ env.REGISTRY }}/${{ github.repository_owner }}/chatwoot:${{ steps.tags.outputs.img_tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Promote tested image
+        if: inputs.existing_candidate_tag != ''
+        env:
+          SOURCE_TAG: ${{ inputs.existing_candidate_tag }}
+          TARGET_TAG: ${{ steps.tags.outputs.img_tag }}
+          IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/chatwoot
+        run: |
+          [[ "$SOURCE_TAG" =~ ^[a-zA-Z0-9_.-]+$ ]] || exit 1
+          [[ "$TARGET_TAG" =~ ^[a-zA-Z0-9_.-]+$ ]] || exit 1
+          docker buildx imagetools create --prefer-index=false --tag "$IMAGE:$TARGET_TAG" "$IMAGE:$SOURCE_TAG"
+          docker buildx imagetools inspect "$IMAGE:$TARGET_TAG"
 
       - name: Summary
         run: |
