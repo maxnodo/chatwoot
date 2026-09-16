@@ -15,3 +15,6 @@ vendor/bundle
 .DS_Store
 *.swp
 *~
+
+# Supabase is deployed independently of the Rails image.
+supabase

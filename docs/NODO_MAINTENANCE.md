@@ -37,7 +37,9 @@ npx deno test --config supabase/deno.json --allow-env --lock=supabase/deno.lock 
 
 Backup previo en el VPS: `/root/nodo-backups/20260916/`, acceso root. Copia local privada: `/Users/maximilianoleguizamon/Documents/Nodo/maintenance-20260916/`. No añadir backups al repositorio: contienen datos de clientes y configuración sensible.
 
-`gonodo.dump` es un archivo pg_dump custom de Postgres 17; `restore-list.txt` registra el inventario. `easypanel.tgz` y `services.json` guardan la configuración anterior. Storage se copia por separado con un manifiesto de claves, tamaños y SHA-256. La DB por sí sola no recupera los archivos de Storage.
+`gonodo.dump` es un archivo pg_dump custom de Postgres 17; `restore-list.txt` registra el inventario. `easypanel.tgz` y `services.json` guardan la configuración anterior. Storage se copió por separado: 5.300 objetos y 4.308.502.496 bytes, con manifiesto de claves, tamaños y SHA-256. También se guardaron las 16 versiones originales de las funciones en `edge-functions-before.json`. La DB por sí sola no recupera los archivos de Storage.
+
+Hostinger mantiene backups semanales del VPS; se verificaron las copias del 5 y 12 de septiembre de 2026. No se contrató ningún servicio adicional.
 
 Imagen anterior: `ghcr.io/maxnodo/chatwoot:v4.17.0-nodo.78`. Cambiar ambas imágenes desde EasyPanel si hace falta rollback. No usar docker service update por fuera del panel. La migración de 4.17.1 agrega `conversations.ai_assignee_type` y rellena AgentBot; no retirar esa columna automáticamente al volver a 4.17.0. Los flags de Evolution permanecen en 64, porque ambas versiones 4.17.0/4.17.1 usan ese valor.
 
