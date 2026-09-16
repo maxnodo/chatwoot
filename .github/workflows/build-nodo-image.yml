@@ -107,6 +107,7 @@ jobs:
       - name: Promote tested image
         if: inputs.existing_candidate_tag != ''
         env:
+          PUBLISH_LATEST: ${{ steps.tags.outputs.pisa_latest }}
           SOURCE_TAG: ${{ inputs.existing_candidate_tag }}
           TARGET_TAG: ${{ steps.tags.outputs.img_tag }}
           IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/chatwoot
@@ -114,6 +115,9 @@ jobs:
           [[ "$SOURCE_TAG" =~ ^[a-zA-Z0-9_.-]+$ ]] || exit 1
           [[ "$TARGET_TAG" =~ ^[a-zA-Z0-9_.-]+$ ]] || exit 1
           docker buildx imagetools create --prefer-index=false --tag "$IMAGE:$TARGET_TAG" "$IMAGE:$SOURCE_TAG"
+          if [[ "$PUBLISH_LATEST" == "true" ]]; then
+            docker buildx imagetools create --prefer-index=false --tag "$IMAGE:latest" "$IMAGE:$SOURCE_TAG"
+          fi
           docker buildx imagetools inspect "$IMAGE:$TARGET_TAG"
 
       - name: Summary

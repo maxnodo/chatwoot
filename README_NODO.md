@@ -6,22 +6,21 @@ funcionalidad para los requerimientos específicos de **Comunidad Nodo**.
 
 ---
 
-## Estado documentado antes del mantenimiento (16-sep-2026)
+## Estado actual (16-sep-2026)
 
 | | |
 |---|---|
-| Base upstream | **v4.17.0** |
-| Rama de trabajo | `nodo-customizations` @ `33628258f1` (`ci: bump version productiva a v4.17.0 para el cutover`) |
-| Imagen en producción | `ghcr.io/maxnodo/chatwoot:v4.17.0-nodo.78` (GHCR, build #78) |
+| Base upstream | **v4.17.1** |
+| Rama de trabajo | `nodo-customizations` — actualización y mantenimiento del 16-sep-2026 |
+| Imagen en producción | `ghcr.io/maxnodo/chatwoot:v4.17.1-nodo.79` (imagen validada del build #79) |
 | Despliegue | EasyPanel → proyecto `nodowoot` (servicios `chatwoot` y `chatwoot-sidekiq`, misma imagen) |
 | Patches vivos | 1, 1b, 2, 4, 5, 5b, 6, 6.1, 7, 9, 10, 11, 12, 13, 14, 15, 16, 18 |
 | Numeración sin uso | **3** y **8** nunca existieron. **17** se eliminó (ver abajo). |
 
-⚠️ **Pendiente del cutover a 4.17.0:** upstream insertó `delayed_automations` en
-`feature_flags_ext_1` por delante de `api_campaign`, que pasó del bit 32 al bit
-64. Las cuentas que ya tenían el flag encendido quedaron con el bit viejo y
-**las campañas Evolution figuran apagadas** hasta correr la migración de
-bitmasks en la base `gonodo` (ver `ESTADO_PROYECTO_NODO.md`).
+**Resuelto el 16-sep-2026:** se migró `api_campaign` de 32 a 64 en las
+cuentas 1, 20 y 25, conservando los demás bits. Se corrigieron permisos de
+tablas y autenticación/concurrencia de los despachadores. Ver
+`docs/NODO_MAINTENANCE.md` para pruebas, backups y recuperación.
 
 ---
 
@@ -34,7 +33,7 @@ Ver `docs/NODO_MAINTENANCE.md` para el mantenimiento 4.17.1, funciones y migraci
 - **Rama upstream** (`develop`, `master`, tags): se mantiene como mirror del repo
   oficial. No se commitea nada acá.
 - **Rama de trabajo** (`nodo-customizations`): vive a partir de un tag estable
-  (`v4.17.0` actualmente). Acá viven todos los patches.
+  (`v4.17.1` actualmente). Acá viven todos los patches.
 
 Cada vez que sale una versión nueva de Chatwoot upstream, se rebasea
 `nodo-customizations` contra el nuevo tag, se resuelven conflictos (si los

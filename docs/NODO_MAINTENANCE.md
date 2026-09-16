@@ -1,5 +1,17 @@
 # Mantenimiento de Nodo — 16 de septiembre de 2026
 
+## Resultado en producción
+
+Web y Sidekiq se desplegaron desde EasyPanel con `ghcr.io/maxnodo/chatwoot:v4.17.1-nodo.79`.
+Digest validado y desplegado: `sha256:eb601266289ac3616b3a8e95375b66432120ba919dec2e8771d021d1b9809459`.
+Build completo: https://github.com/maxnodo/chatwoot/actions/runs/35141653060
+Promoción del mismo digest: https://github.com/maxnodo/chatwoot/actions/runs/35144081578
+El código Rails/Vue de la imagen corresponde a `cb1dd74def`; los commits posteriores versionan infraestructura, documentación y la promoción, sin cambiar ese código de aplicación.
+
+Verificación del 16-sep a las 20:06 UTC: `/api` devuelve `version=4.17.1`, `queue_services=ok`, `data_services=ok`. Mensajes programados y cuota Evolution responden 200 con autenticación real. Rails confirma Evolution activo en las cuentas 1, 20 y 25. Migración `20260811000000` aplicada y backfill de asignación AI completo; cron HTTP 200, sin processing atascados. La página de login carga con marca Nodo. No se hizo una prueba de pago/envío real ni una revisión visual completa de todas las pantallas.
+
+La imagen se probó primero con la base restaurada, sin red externa: arranque, migración, 4 cuentas/1.148 conversaciones/118 programados del backup, y patches de campañas/audio correctos. Se conservó un segundo dump `gonodo-pre-upgrade.dump` inmediatamente antes de cambiar la imagen. La copia local de Storage verificó los SHA-256 de los 5.300 objetos.
+
 ## Fuentes y alcance
 
 Repositorio `maxnodo/chatwoot`, rama productiva `nodo-customizations`. Esta actualización integra upstream `v4.17.1` y conserva los patches Nodo. SumUp permanece aparcado; su stash original no se aplicó. Las funciones SumUp se exportan como inventario, sin modificarlas ni desplegarlas.
@@ -41,7 +53,7 @@ Backup previo en el VPS: `/root/nodo-backups/20260916/`, acceso root. Copia loca
 
 Hostinger mantiene backups semanales del VPS; se verificaron las copias del 5 y 12 de septiembre de 2026. No se contrató ningún servicio adicional.
 
-Imagen anterior: `ghcr.io/maxnodo/chatwoot:v4.17.0-nodo.78`. Cambiar ambas imágenes desde EasyPanel si hace falta rollback. No usar docker service update por fuera del panel. La migración de 4.17.1 agrega `conversations.ai_assignee_type` y rellena AgentBot; no retirar esa columna automáticamente al volver a 4.17.0. Los flags de Evolution permanecen en 64, porque ambas versiones 4.17.0/4.17.1 usan ese valor.
+Imagen anterior: `ghcr.io/maxnodo/chatwoot:v4.17.0-nodo.78`. Cambiar ambas imágenes desde EasyPanel si hace falta rollback. No usar docker service update por fuera del panel. La migración de 4.17.1 agrega `conversations.ai_assignee_type` y rellena AgentBot; no retirar esa columna automáticamente al volver a 4.17.0. Mantener las correcciones independientes de Supabase al revertir solo la imagen. Los flags de Evolution permanecen en 64, porque ambas versiones 4.17.0/4.17.1 usan ese valor.
 
 El backup completo se restaura primero en un entorno aislado; una restauración de producción requiere planificar el corte y la pérdida de cambios posteriores al backup. Para recuperación dentro de Supabase deben preservarse sus schemas/roles administrados. La prueba de restauración realizada cubre las tablas de negocio public, no una reconstrucción completa de todos los servicios administrados de Supabase.
 
@@ -52,7 +64,7 @@ El backup completo se restaura primero en un entorno aislado; una restauración 
 3. Comparar orden de feature flags: un cambio de orden exige migrar valores conservando bits ajenos.
 4. Leer migraciones Rails, probarlas con una restauración aislada y ejecutar pruebas relevantes.
 5. Compilar imagen candidata sin sobrescribir latest; validar antes de desplegar.
-6. Publicar y desplegar web + Sidekiq desde EasyPanel con la misma imagen.
+6. Promover la imagen candidata ya probada usando `existing_candidate_tag` en el workflow. La promoción desde `nodo-customizations` actualiza también `latest`; usar siempre el tag versionado en EasyPanel. Publicar y desplegar web + Sidekiq desde EasyPanel con la misma imagen.
 7. Comprobar versión, salud, migraciones, bandejas, cuotas, indicadores, Copilot y configuración de audio/pagos. Los pagos y envíos reales requieren una prueba controlada específica.
 8. Ejecutar Advisor y revisar permisos de tablas nuevas, propietarios y default privileges; comprobar ambos cron y mensajes processing detenidos.
 9. Guardar nuevas migraciones/funciones y el resultado de las comprobaciones en Git.
