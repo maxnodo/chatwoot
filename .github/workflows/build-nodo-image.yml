@@ -10,13 +10,13 @@ on:
   workflow_dispatch:
     inputs:
       chatwoot_version:
-        description: 'Tag de Chatwoot upstream a usar como base (ej. v4.13.0)'
+        description: 'Tag de Chatwoot upstream a usar como base (ej. v4.17.1)'
         required: true
-        default: 'v4.13.0'
+        default: 'v4.17.1'
       image_tag:
-        description: 'Tag a publicar en GHCR (ej. v4.13.0-nodo.1)'
+        description: 'Tag a publicar en GHCR (ej. v4.17.1-nodo.1)'
         required: true
-        default: 'v4.13.0-nodo.1'
+        default: 'v4.17.1-nodo.1'
 
 env:
   REGISTRY: ghcr.io
@@ -50,7 +50,8 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             CW_VERSION="${{ github.event.inputs.chatwoot_version }}"
             IMG_TAG="${{ github.event.inputs.image_tag }}"
-            PISA_LATEST="true"
+            PISA_LATEST="false"
+            if [[ "$BRANCH" == "nodo-customizations" ]]; then PISA_LATEST="true"; fi
           elif [[ "$BRANCH" == rebase/* ]]; then
             # NODO: rama de rebase. Extraer versión del nombre de la rama.
             # Ej: rebase/v4.14.0 → CW_VERSION=v4.14.0, IMG_TAG=v4.14.0-rebase.RUN
@@ -59,16 +60,8 @@ jobs:
             PISA_LATEST="false"  # NO pisar :latest desde ramas de rebase
           else
             # Rama productiva nodo-customizations.
-            # NODO: tras cutover a v4.17.0 (22-ago-2026). Trae plantillas de
-            # WhatsApp gestionables, analytics de campañas, Rails 7.2.3.1 e
-            # import desde Freshdesk. OJO: 18 migraciones nuevas de DB.
-            # ⚠️ Este salto MOVIO el bit de api_campaign: upstream insertó
-            # delayed_automations en feature_flags_ext_1 por delante del flag
-            # propio, que pasó de bit 32 a bit 64. Se migraron los bitmasks de
-            # las cuentas 1, 20 y 25 (32 -> 64) en el cutover.
-            # Para futuros upgrades, bumpear acá la versión upstream + el tag IMG.
-            CW_VERSION="v4.17.0"
-            IMG_TAG="v4.17.0-nodo.${{ github.run_number }}"
+            CW_VERSION="v4.17.1"
+            IMG_TAG="v4.17.1-nodo.${{ github.run_number }}"
             PISA_LATEST="true"
           fi
           echo "cw_version=$CW_VERSION" >> "$GITHUB_OUTPUT"
