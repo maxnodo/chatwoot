@@ -6,12 +6,35 @@ funcionalidad para los requerimientos específicos de **Comunidad Nodo**.
 
 ---
 
+## Estado documentado antes del mantenimiento (16-sep-2026)
+
+| | |
+|---|---|
+| Base upstream | **v4.17.0** |
+| Rama de trabajo | `nodo-customizations` @ `33628258f1` (`ci: bump version productiva a v4.17.0 para el cutover`) |
+| Imagen en producción | `ghcr.io/maxnodo/chatwoot:v4.17.0-nodo.78` (GHCR, build #78) |
+| Despliegue | EasyPanel → proyecto `nodowoot` (servicios `chatwoot` y `chatwoot-sidekiq`, misma imagen) |
+| Patches vivos | 1, 1b, 2, 4, 5, 5b, 6, 6.1, 7, 9, 10, 11, 12, 13, 14, 15, 16, 18 |
+| Numeración sin uso | **3** y **8** nunca existieron. **17** se eliminó (ver abajo). |
+
+⚠️ **Pendiente del cutover a 4.17.0:** upstream insertó `delayed_automations` en
+`feature_flags_ext_1` por delante de `api_campaign`, que pasó del bit 32 al bit
+64. Las cuentas que ya tenían el flag encendido quedaron con el bit viejo y
+**las campañas Evolution figuran apagadas** hasta correr la migración de
+bitmasks en la base `gonodo` (ver `ESTADO_PROYECTO_NODO.md`).
+
+---
+
+## Mantenimiento en Codex
+
+Ver `docs/NODO_MAINTENANCE.md` para el mantenimiento 4.17.1, funciones y migraciones versionadas, verificaciones y recuperación. Ese documento prevalece sobre las referencias históricas de este README.
+
 ## Estrategia
 
 - **Rama upstream** (`develop`, `master`, tags): se mantiene como mirror del repo
   oficial. No se commitea nada acá.
 - **Rama de trabajo** (`nodo-customizations`): vive a partir de un tag estable
-  (`v4.13.0` actualmente). Acá viven todos los patches.
+  (`v4.17.0` actualmente). Acá viven todos los patches.
 
 Cada vez que sale una versión nueva de Chatwoot upstream, se rebasea
 `nodo-customizations` contra el nuevo tag, se resuelven conflictos (si los
@@ -30,6 +53,23 @@ hay) y se rebuildea la imagen.
 | 6 | **Backend:** `config/features.yml` (entry `api_campaign`) + `app/models/campaign.rb` (whitelist + dispatcher + validations) + `app/models/nodo_scheduled_message.rb` (new) + `app/services/api/oneoff_campaign_service.rb` (new) + `app/controllers/api/v1/accounts/inboxes/api_campaign_quotas_controller.rb` (new) + `config/routes.rb` (edit). **Frontend:** `app/javascript/dashboard/featureFlags.js` + `routes/dashboard/campaigns/campaigns.routes.js` + `components-next/sidebar/Sidebar.vue` + `store/modules/{campaigns,inboxes}.js` + 4 componentes Vue nuevos en `components-next/Campaigns/.../EvolutionCampaign/` + `routes/.../pages/EvolutionCampaignsPage.vue` + `i18n/locale/{es,en}/{campaign,settings}.json`. **EFs:** `schedule-message` v7 (acepta `attachment_url` + `campaign_id`) + `dispatch-scheduled-messages` v2 (descarga imagen y la sube multipart a Chatwoot). | **Campañas para Channel::Api (Evolution)** — backend + frontend + EFs completo. Cap 200/24h rolling window por inbox, delay aleatorio 3-20s entre mensajes, spread automático si la audiencia excede 200 (la misma campaign se distribuye en N ventanas de 24h), exclusión mutua per-inbox (solo 1 campaign Evolution activa por inbox), soporte de imagen opcional vía URL pública. Tab dedicado "Evolution" en sidebar de Campañas, form sin templates con campo `attachment_url`, indicador de quota en tiempo real (poll cada 30s) que bloquea el submit si ya hay una campaign activa. Activable como **add-on premium** desde el panel `/super_admin/accounts/:id/edit` (checkbox "Evolution Campaigns" en sección Premium Features). Ver sección "Patch 6 — Campañas Channel::Api" más abajo. |
 | 6.1 | `app/services/api/oneoff_campaign_service.rb` (render_message + PLACEHOLDER_RESOLVERS) + `app/javascript/dashboard/i18n/locale/{es,en}/campaign.json` (MESSAGE.HINT) + `components-next/Campaigns/Pages/CampaignPage/EvolutionCampaign/EvolutionCampaignForm.vue` (mostrar hint) | **Variables por contacto en mensajes de campaña** (opt-in, backend-only). El `campaign.message` admite `{{nombre}}, {{nombre_completo}}, {{empresa}}, {{email}}, {{telefono}}` que se reemplazan por datos del Contact al crear cada `nodo_scheduled_messages`. Cada destinatario recibe un mensaje único → hash distinto → reduce el fingerprinting que Meta hace sobre broadcasts. Mensajes sin placeholders siguen comportándose igual (sin cambio). Fallbacks sensatos (ej. `{{empresa}}` vacía → `"tu empresa"`). |
 | 7 | **Backend:** `app/controllers/api/v1/accounts/scheduled_messages_controller.rb` (new) + `config/routes.rb` (resources scheduled_messages, only [:index, :destroy] + collection :summary). **Frontend:** `app/javascript/dashboard/api/scheduledMessages.js` (new) + `store/modules/scheduledMessages.js` (new) + `components/widgets/conversation/conversationCardComponents/ScheduledMessagesIndicator.vue` (new) + `components/widgets/conversation/ScheduledMessagesBanner.vue` (new) + edits en `ConversationCard.vue` (legacy), `ConversationBox.vue`, `ChatList.vue` (polling 60s) + `i18n/locale/{es,en}/conversation.json` (SCHEDULED_MESSAGES.*). | **Indicador de mensajes programados en bandeja + banner en conversación.** Cuando un contacto tiene scheduled pending (Copilot Patch 2 o Campaign Patch 6), aparece un chip violeta con counter en su `ConversationCard` (diferencia ícono según origen: `send-clock-outline` manual vs `megaphone-outline` campaign). Al abrir la conv, un banner colapsable arriba del thread muestra próximo envío + lista expandible con preview, timestamp, fecha relativa y origen. Admin puede cancelar inline con un botón "Cancelar" en cada item (marca status='cancelled', conserva auditoría). Polling cada 60s en la bandeja para auto-update. Sin riesgo de regresión: solo se renderiza si total>0; si el endpoint falla, log warn y UI igual al pre-Patch 7. |
+| 9 | `components/widgets/conversation/PaymentLinkButton.vue` (new) + `WootWriter/ReplyBottomPanel.vue` (edit) + `conversation/ReplyBox.vue` (edit) | **Links de pago Stripe desde el composer.** Botón «€» que abre un modal (importe + concepto, tope 10.000) y llama a la Edge Function `create-payment-link` del proyecto `gonodo`, que crea el Payment Link en la **cuenta conectada del cliente** con la comisión de Nodo como `application_fee`. El link se inserta en el mensaje. Se muestra solo en inboxes `Channel::Api` (Evolution) y WhatsApp, y nunca en nota privada. En Evolution se inserta **solo la URL aislada**: un mensaje con texto + URL rompe el envío por Baileys (falla el link preview de Stripe). El cobro y el aviso «✅ Pago recibido» los maneja el webhook de Stripe Connect, aparte del CRM. |
+| 10 | `app/finders/conversation_finder.rb` + `app/models/conversation.rb` + `controllers/api/v1/accounts/conversations_controller.rb` + los dos `_conversation.json.jbuilder` (core y enterprise) | **Lista de conversaciones sin N+1.** La DB es Supabase remota (~17 ms por query), así que cada query de más se nota: se pasó de ~150 queries por página a ~15, con 3 queries batch y precarga de `:account`, `{ inbox: :channel }`, avatares, `:taggings`, `:team` y `:contact_inbox` (el partial enterprise consulta `account.feature_enabled?` y `can_reply?` toca el channel polimórfico). **Gotcha:** el `default_scope` de `Message` rompe `DISTINCT ON` y `GROUP BY` → en las queries batch hay que usar `reorder`, no `order`. |
+| 11 | `enterprise/app/services/llm/speech_to_text_service.rb` | **Fix de transcripción de audios de Evolution.** OpenAI valida el formato **por la extensión** del archivo: `.oga`, `.opus` y `.mpga` devuelven 400 y la transcripción fallaba en silencio. El patch normaliza la extensión antes de subir (`oga`/`opus` → `ogg`, `mpga` → `mp3`) y arma el nombre del temp file con esa extensión. WhatsApp Cloud (`.ogg`) nunca tuvo el problema. ⚠️ **En v4.17.0 este patch cambió de archivo:** antes vivía en `enterprise/app/services/messages/audio_transcription_service.rb`, que ahora es el de upstream sin tocar. |
+| 12 | `controllers/api/v1/accounts/inboxes/api_campaign_quotas_controller.rb` + `dashboard/api/campaigns.js` + `store/modules/campaigns.js` + `EvolutionCampaignForm.vue` | **UX de la restricción de campañas Evolution.** El indicador de quota consulta `/api_campaign_quota` con las cabeceras de auth correctas (antes iba sin ellas → 401 silencioso, `quota` en `null` y el form quedaba habilitado). Muestra cuántos mensajes quedan en la ventana de 24 h, bloquea el submit si ya hay una campaña activa en ese inbox y, cuando el backend rechaza, muestra el error real en vez de uno genérico. |
+| 13 | `app/services/telegram/oneoff_campaign_service.rb` (new) + `app/models/campaign.rb` + `config/features.yml` + `store/modules/{campaigns,inboxes}.js` + `campaigns.routes.js` + `TelegramCampaignsPage.vue` + `components-next/Campaigns/.../TelegramCampaign/*` (new) + `TelegramCampaignEmptyState.vue` + `Sidebar.vue` + i18n `{es,en}/{campaign,settings}.json` | **Campañas one-off para Telegram** (`Channel::Telegram`), con su propio tab en el sidebar de Campañas, mismo modelo que las de Evolution. **Gotcha de vue-i18n:** los locale JSON **no admiten `{{ }}` literales** — revientan el componente; por eso el hint de variables del form se arma en el componente y no en el i18n. |
+| 14 | `app/javascript/v3/views/login/Index.vue` + i18n `{es,en}/login.json` | **Login rediseñado** — «Opción 1 Minimal refinado» del handoff de Claude Design: pantalla limpia, marca Nodo y tipografía propia, sin tocar la lógica de autenticación. |
+| 15 | `app/models/account.rb` + `app/models/campaign.rb` + `super_admin/accounts_controller.rb` + `app/dashboards/account_dashboard.rb` + `enterprise/app/views/fields/account_features_field/_form.html.erb` + `config/features.yml` + `telegram/oneoff_campaign_service.rb` | **Telegram y Evolution se habilitan por separado.** El flag `api_campaign` pasó a gatear **solo Evolution** (display «Nodo Campaigns — Evolution»); Telegram se movió a `settings.telegram_campaigns` (JSONB, `store_accessor` + `telegram_campaigns_enabled?` con cast robusto porque el checkbox guarda `"0"`/`"1"`). El toggle vive dentro de la grilla de Features del super admin, así se venden como add-ons distintos. |
+| 16 | `theme/colors.js` + `assets/scss/_next-colors.scss` + `components/buttons/ResolveAction.vue` + `components-next/Conversation/ConversationCard/UnreadBadge.vue` + `components-next/sidebar/SidebarGroupLeaf.vue` + `components/widgets/conversation/ConversationCard.vue` | **Rediseño «Nodo refinado», en 3 fases.** F1: token de marca theme-aware — indigo `#4F46E5` en light y `#6366F1` en dark, más superficies navy en dark (fondo `#0B1220`, superficies `#121A2B` / `#1A2436`). F2: barra indigo inset en la conversación activa de la bandeja y `UnreadBadge` con el color de marca. F3: botón «Resolver» y chevron en indigo, y ítem activo del sidebar con `bg-n-brand/10`. Chatwoot es token-driven: cambiar el token corre todo el CRM. En el Button next, el color de marca es `color="blue"`. |
+| 18 | `app/views/super_admin/devise/sessions/new.html.erb` + `app/views/super_admin/application/_navigation.html.erb` | **Marca Nodo en el super admin**: login y encabezado del nav, para que el panel interno deje de mostrar la marca de Chatwoot. |
+
+**Patch 17 (eliminado).** Fue un workaround al overflow de bit 64 en `bigint`
+con signo: `advanced_assignment` no se podía apagar porque la columna
+`feature_flags` estaba llena (63/63). En **v4.16.0 upstream agregó
+`feature_flags_ext_1`**, que resuelve el problema de raíz, y el patch se sacó.
+Queda documentado por si reaparece un síntoma parecido.
+
+**Patches 3 y 8** nunca existieron: la numeración saltea esos dos.
 
 ---
 
@@ -88,8 +128,8 @@ git fetch upstream --tags
 # 2. Cambiar a la rama de trabajo
 git checkout nodo-customizations
 
-# 3. Rebasear contra el nuevo tag (ej. v4.14.0)
-git rebase v4.14.0
+# 3. Rebasear contra el nuevo tag (ej. v4.17.0)
+git rebase v4.17.0
 
 # 4a. Si NO hay conflictos: listo, push
 git push --force-with-lease origin nodo-customizations

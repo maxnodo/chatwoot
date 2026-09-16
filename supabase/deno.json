@@ -1,0 +1,4 @@
+{
+  "nodeModulesDir": "auto",
+  "compilerOptions": { "lib": ["deno.ns", "dom", "esnext"] }
+}

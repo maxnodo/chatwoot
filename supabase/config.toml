@@ -1,0 +1,49 @@
+project_id = "ntncrklsckzmoaincafs"
+
+[functions.get-account-usage]
+verify_jwt = true
+
+[functions.route-incidence]
+verify_jwt = true
+
+[functions.schedule-message]
+verify_jwt = true
+
+[functions.dispatch-scheduled-messages]
+verify_jwt = false
+
+[functions.list-scheduled-messages]
+verify_jwt = true
+
+[functions.cancel-scheduled-message]
+verify_jwt = true
+
+[functions.reschedule-scheduled-message]
+verify_jwt = true
+
+[functions.update-scheduled-message]
+verify_jwt = true
+
+[functions.create-payment-link]
+verify_jwt = true
+
+[functions.stripe-payment-webhook]
+verify_jwt = false
+
+[functions.validate-whatsapp]
+verify_jwt = false
+
+[functions.dispatch-group-messages]
+verify_jwt = false
+
+[functions.fetch-group-messages-test]
+verify_jwt = false
+
+[functions.sumup-payment-webhook]
+verify_jwt = false
+
+[functions.sumup-oauth-start]
+verify_jwt = true
+
+[functions.sumup-oauth-callback]
+verify_jwt = false
