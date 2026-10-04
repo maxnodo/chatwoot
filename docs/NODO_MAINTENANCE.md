@@ -6,6 +6,10 @@ La cuenta 25 (`Dolce`) dispone del asistente interno `Programador de mensajes �
 
 Se copiaron a la cuenta 25 las herramientas `schedule_message`, `list_scheduled_messages`, `update_scheduled_message` y `cancel_scheduled_message`. Las cuatro Edge Functions correspondientes permiten ahora las cuentas 1 y 25; cada operación sigue validando `account_id`, conversación y estado del mensaje. Se verificó `list_scheduled_messages` desde la conversación 96 de Dolce mediante el mismo flujo HTTP de Capitán.
 
+También se habilitaron reglas semanales permanentes mediante `create_weekly_recurring_message`, `list_recurring_messages`, `update_recurring_message`, `pause_recurring_message`, `resume_recurring_message` y `cancel_recurring_message`. La Edge Function `manage-recurring-messages` acepta únicamente las cuentas 1 y 25 y opera con service role; las funciones SQL y la tabla recurrente no son accesibles por `anon` ni `authenticated`. Las reglas guardan el día y la hora en `Europe/Madrid`, por lo que mantienen la hora local al cambiar entre horario de verano e invierno.
+
+El cron `nodo-materialize-weekly-recurring-messages` se ejecuta cada minuto y convierte cada vencimiento en un registro de `nodo_scheduled_messages`; el dispatcher existente realiza el envío. Un índice único por regla y fecha evita duplicados. Se probó creación y materialización dentro de una transacción revertida, y se confirmó que el cron termina correctamente. No se creó ninguna regla real para clientes durante esta implementación.
+
 ## Resultado en producción
 
 Web y Sidekiq se desplegaron desde EasyPanel con `ghcr.io/maxnodo/chatwoot:v4.17.1-nodo.79`.
@@ -91,5 +95,5 @@ WHERE status = 'processing' AND updated_at < now() - interval '10 minutes';
 - El bucket de adjuntos sigue público; cambiar su modelo requiere comprobar URLs y flujos de Active Storage. No forma parte de esta actualización.
 - Tres extensiones continúan en public (pg_trgm, vector, pg_net). Moverlas puede afectar tipos/consultas de Rails y servicios administrados; no se cambian para silenciar un aviso.
 - RLS sin políticas en las tres tablas privadas es intencionado: deniega clientes; el Advisor puede mostrar avisos informativos.
-- No se amplió la programación por Copilot fuera de la cuenta 1.
+- La programación por Copilot está habilitada en las cuentas 1 y 25. Las reglas semanales se añadieron para Dolce sin vincular el asistente como bot de bandeja.
 - No se enviaron mensajes reales ni se realizaron cobros como parte del mantenimiento.

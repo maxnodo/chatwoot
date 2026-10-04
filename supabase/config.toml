@@ -24,6 +24,9 @@ verify_jwt = true
 [functions.update-scheduled-message]
 verify_jwt = true
 
+[functions.manage-recurring-messages]
+verify_jwt = true
+
 [functions.create-payment-link]
 verify_jwt = true
 
