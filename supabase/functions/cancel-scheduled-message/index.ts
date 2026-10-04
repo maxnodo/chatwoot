@@ -11,7 +11,7 @@ import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const ALLOWED_ACCOUNT_ID = 1;
+const ALLOWED_ACCOUNT_IDS = [1, 25];
 
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -99,7 +99,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   );
   const scheduledId = Number(body.scheduled_id);
 
-  if (accountId !== ALLOWED_ACCOUNT_ID) {
+  if (!ALLOWED_ACCOUNT_IDS.includes(accountId)) {
     const msg = `account_id ${accountId} no autorizado`;
     await logAttempt(supabase, dbgHeaders, rawText, body, accountId, convDisplayId, null, 403, msg);
     return jsonResponse({ error: msg, message: "Error: account no autorizado." }, 403);
@@ -177,4 +177,3 @@ Deno.serve(async (req: Request): Promise<Response> => {
     message: `Cancelado: SCHED-${scheduledId} que iba a enviarse el ${sendAtMadrid} (Madrid). Contenido: "${(sched.content ?? "").slice(0, 80)}". Ya no se enviar.`,
   });
 });
-

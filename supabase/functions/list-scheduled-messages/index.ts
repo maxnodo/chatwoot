@@ -15,7 +15,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-const ALLOWED_ACCOUNT_ID = 1;
+const ALLOWED_ACCOUNT_IDS = [1, 25];
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
 const VALID_STATUSES = ["pending", "sent", "failed", "cancelled"];
@@ -79,7 +79,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (!Number.isFinite(limit) || limit < 1) limit = DEFAULT_LIMIT;
   if (limit > MAX_LIMIT) limit = MAX_LIMIT;
 
-  if (accountId !== ALLOWED_ACCOUNT_ID) {
+  if (!ALLOWED_ACCOUNT_IDS.includes(accountId)) {
     return jsonResponse({
       error: `account_id ${accountId} no autorizado`,
       message: "Error: account no autorizado.",
@@ -154,4 +154,3 @@ Deno.serve(async (req: Request): Promise<Response> => {
     message: msg,
   });
 });
-

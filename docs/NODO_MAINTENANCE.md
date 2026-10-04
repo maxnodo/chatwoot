@@ -1,5 +1,11 @@
 # Mantenimiento de Nodo — 16 de septiembre de 2026
 
+## Capitán para Dolce — 4 de octubre de 2026
+
+La cuenta 25 (`Dolce`) dispone del asistente interno `Programador de mensajes — Dolce` (assistant ID 7). No está conectado como bot a ninguna bandeja, por lo que no responde automáticamente a clientes. Se usa desde Copilot dentro de una conversación.
+
+Se copiaron a la cuenta 25 las herramientas `schedule_message`, `list_scheduled_messages`, `update_scheduled_message` y `cancel_scheduled_message`. Las cuatro Edge Functions correspondientes permiten ahora las cuentas 1 y 25; cada operación sigue validando `account_id`, conversación y estado del mensaje. Se verificó `list_scheduled_messages` desde la conversación 96 de Dolce mediante el mismo flujo HTTP de Capitán.
+
 ## Resultado en producción
 
 Web y Sidekiq se desplegaron desde EasyPanel con `ghcr.io/maxnodo/chatwoot:v4.17.1-nodo.79`.

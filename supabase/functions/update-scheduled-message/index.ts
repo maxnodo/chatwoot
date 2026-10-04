@@ -16,7 +16,7 @@ import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const ALLOWED_ACCOUNT_ID = 1;
+const ALLOWED_ACCOUNT_IDS = [1, 25];
 const MAX_FUTURE_DAYS = 30;
 const MIN_FUTURE_SECONDS = 30;
 const MIN_CONTENT_LEN = 1;
@@ -132,7 +132,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const newSendAtRaw = normalizeOptional(body.new_send_at) ?? "";
   const newContent = normalizeOptional(body.new_content) ?? "";
 
-  if (accountId !== ALLOWED_ACCOUNT_ID) {
+  if (!ALLOWED_ACCOUNT_IDS.includes(accountId)) {
     const msg = `account_id ${accountId} no autorizado`;
     await logAttempt(supabase, dbgHeaders, rawText, body, accountId, convDisplayId, null, newSendAtRaw, newContent.length, 403, msg);
     return jsonResponse({ error: msg, message: "Error: account no autorizado." }, 403);
@@ -265,4 +265,3 @@ Deno.serve(async (req: Request): Promise<Response> => {
     message: `Actualizado SCHED-${scheduledId}. ${changes.join(". ")}.`,
   });
 });
-

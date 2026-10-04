@@ -13,7 +13,7 @@
 // v4: busca por display_id en vez de id interno.
 //
 // Restricciones:
-//   - account_id debe ser 1
+//   - account_id debe pertenecer a una cuenta habilitada para programación
 //   - inbox.channel_type debe estar en Channel::Api
 //   - send_at: 30s a 30d en el futuro
 //   - content: 1-4000 chars
@@ -26,7 +26,7 @@ import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-const ALLOWED_ACCOUNT_ID = 1;
+const ALLOWED_ACCOUNT_IDS = [1, 25];
 const ALLOWED_CHANNEL_TYPES = ["Channel::Api"];
 const MAX_FUTURE_DAYS = 30;
 const MIN_FUTURE_SECONDS = 30;
@@ -217,8 +217,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     parsed_send_at_raw: sendAtRaw,
   };
 
-  if (accountId !== ALLOWED_ACCOUNT_ID) {
-    const msg = `account_id ${accountId} no autorizado. Solo se permite ${ALLOWED_ACCOUNT_ID}.`;
+  if (!ALLOWED_ACCOUNT_IDS.includes(accountId)) {
+    const msg = `account_id ${accountId} no autorizado.`;
     await logAttempt(supabase, snap, 403, msg, null);
     return jsonResponse({ error: msg }, 403);
   }
@@ -361,4 +361,3 @@ Deno.serve(async (req: Request): Promise<Response> => {
     message: `Mensaje programado correctamente con ID ${inserted.id}, se enviará el ${sendAtHuman} (Madrid) via ${inbox.name}. Folio interno: SCHED-${inserted.id}.`,
   });
 });
-
