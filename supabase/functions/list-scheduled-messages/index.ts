@@ -1,12 +1,12 @@
 // Edge Function: list-scheduled-messages (v1)
-// Retorna los mensajes programados de una conversación (display_id) para que
-// el Captain Copilot pueda armar resmenes / listados al agente.
+// Retorna los envíos únicos y las reglas recurrentes de una conversación
+// (display_id) para que Captain Copilot pueda armar resúmenes completos.
 //
 // Input body:
 //   { conversation_id: string, status_filter?: 'pending'|'sent'|'failed'|'cancelled'|'all', limit?: number|string }
 //
 // Restricciones:
-//   - account_id debe ser 1 (single-tenant)
+//   - account_id debe pertenecer a una cuenta autorizada
 //   - limit: default 20, max 50
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -39,17 +39,34 @@ function fmtMadrid(iso: string): string {
     const d = new Date(iso);
     return d.toLocaleString("es-AR", {
       timeZone: "Europe/Madrid",
-      year: "numeric", month: "short", day: "numeric",
-      hour: "2-digit", minute: "2-digit",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   } catch {
     return iso;
   }
 }
 
+const WEEKDAY_NAMES = [
+  "domingo",
+  "lunes",
+  "martes",
+  "miércoles",
+  "jueves",
+  "viernes",
+  "sábado",
+];
+
 Deno.serve(async (req: Request): Promise<Response> => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+  if (req.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed" }, 405);
+  }
 
   let body: any = {};
   try {
@@ -60,18 +77,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
   }
 
   const headerAccountId = req.headers.get("x-chatwoot-account-id");
-  const headerConvDisplayId = req.headers.get("x-chatwoot-conversation-display-id");
+  const headerConvDisplayId = req.headers.get(
+    "x-chatwoot-conversation-display-id",
+  );
   const headerConvId = req.headers.get("x-chatwoot-conversation-id");
   const accountId = Number(headerAccountId ?? body.account_id);
   const conversationDisplayId = Number(
-    headerConvDisplayId ?? headerConvId ?? body.conversation_id
+    headerConvDisplayId ?? headerConvId ?? body.conversation_id,
   );
 
-  let statusFilter = typeof body.status_filter === "string" ? body.status_filter.trim().toLowerCase() : "all";
+  let statusFilter = typeof body.status_filter === "string"
+    ? body.status_filter.trim().toLowerCase()
+    : "all";
   if (statusFilter === "") statusFilter = "all";
   if (statusFilter !== "all" && !VALID_STATUSES.includes(statusFilter)) {
     return jsonResponse({
-      error: `status_filter inválido. Valores permitidos: ${VALID_STATUSES.join(", ")}, all`,
+      error: `status_filter inválido. Valores permitidos: ${
+        VALID_STATUSES.join(", ")
+      }, all`,
     }, 400);
   }
 
@@ -98,7 +121,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   let q = supabase
     .from("nodo_scheduled_messages")
-    .select("id, send_at, status, content, sent_at, error_message, scheduled_via, created_at")
+    .select(
+      "id, send_at, status, content, sent_at, error_message, scheduled_via, created_at",
+    )
     .eq("conversation_display_id", conversationDisplayId)
     .eq("account_id", accountId)
     .order("send_at", { ascending: true })
@@ -127,11 +152,56 @@ Deno.serve(async (req: Request): Promise<Response> => {
     scheduled_via: r.scheduled_via,
   }));
 
+  // Las reglas recurrentes no materializan un nodo_scheduled_messages hasta
+  // que llega su próxima ejecución. Incluírlas aquí evita que Copilot afirme
+  // erróneamente que una conversación no tiene programaciones.
+  let recurringQuery = supabase
+    .from("nodo_weekly_recurring_messages")
+    .select(
+      "id, content, weekday, local_time, timezone, status, next_run_at, last_materialized_at, created_at",
+    )
+    .eq("conversation_display_id", conversationDisplayId)
+    .eq("account_id", accountId)
+    .order("next_run_at", { ascending: true })
+    .limit(limit);
+
+  if (["all", "pending"].includes(statusFilter)) {
+    recurringQuery = recurringQuery.eq("status", "active");
+  }
+  if (statusFilter === "cancelled") {
+    recurringQuery = recurringQuery.eq("status", "cancelled");
+  }
+  if (["sent", "failed"].includes(statusFilter)) {
+    recurringQuery = recurringQuery.eq("id", -1);
+  }
+
+  const { data: recurringRows, error: recurringErr } = await recurringQuery;
+  if (recurringErr) {
+    return jsonResponse({
+      error: "Error al consultar reglas recurrentes",
+      detail: recurringErr.message,
+      message: `Error al listar reglas recurrentes: ${recurringErr.message}`,
+    }, 500);
+  }
+
+  const recurringItems = (recurringRows ?? []).map((r: any) => ({
+    recurring_id: r.id,
+    folio: `REC-${r.id}`,
+    status: r.status,
+    weekday: r.weekday,
+    weekday_name: WEEKDAY_NAMES[Number(r.weekday)] ?? `día ${r.weekday}`,
+    local_time: String(r.local_time ?? "").slice(0, 5),
+    timezone: r.timezone,
+    next_run_at_iso: r.next_run_at,
+    next_run_at_madrid: fmtMadrid(r.next_run_at),
+    content_preview: (r.content ?? "").slice(0, 100),
+  }));
+
   // Texto humano para el LLM (se extrae con response_template {{response.message}})
   let msg: string;
-  if (items.length === 0) {
+  if (items.length === 0 && recurringItems.length === 0) {
     msg = statusFilter === "all"
-      ? `No hay mensajes programados para la conversación ${conversationDisplayId}.`
+      ? `No hay envíos únicos ni reglas recurrentes para la conversación ${conversationDisplayId}.`
       : `No hay mensajes con status '${statusFilter}' para la conversación ${conversationDisplayId}.`;
   } else {
     const lines = items.map((it: any) => {
@@ -139,11 +209,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
         ? `enviado ${it.sent_at_madrid}`
         : `programado ${it.send_at_madrid}`;
       const errBit = it.error_message ? ` | err: ${it.error_message}` : "";
-      return `- ${it.folio} | ${it.status} | ${when} (Madrid) | "${it.content_preview}"${errBit}`;
+      return `- ${it.folio} | envío único | ${it.status} | ${when} (Madrid) | "${it.content_preview}"${errBit}`;
     });
-    const header = statusFilter === "all"
-      ? `Encontré ${items.length} mensaje(s) programado(s) para la conversación ${conversationDisplayId}:`
-      : `Encontré ${items.length} mensaje(s) con status '${statusFilter}' para la conversación ${conversationDisplayId}:`;
+    lines.push(
+      ...recurringItems.map((it: any) =>
+        `- ${it.folio} | recurrente | ${it.status} | todos los ${it.weekday_name} a las ${it.local_time} (Madrid) | próxima ejecución ${it.next_run_at_madrid} | "${it.content_preview}"`
+      ),
+    );
+    const header =
+      `Encontré ${items.length} envío(s) único(s) y ${recurringItems.length} regla(s) recurrente(s) para la conversación ${conversationDisplayId}:`;
     msg = `${header}\n${lines.join("\n")}`;
   }
 
@@ -151,6 +225,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     ok: true,
     count: items.length,
     items,
+    recurring_count: recurringItems.length,
+    recurring_items: recurringItems,
     message: msg,
   });
 });

@@ -10,6 +10,8 @@ También se habilitaron reglas semanales permanentes mediante `create_weekly_rec
 
 El cron `nodo-materialize-weekly-recurring-messages` se ejecuta cada minuto y convierte cada vencimiento en un registro de `nodo_scheduled_messages`; el dispatcher existente realiza el envío. Un índice único por regla y fecha evita duplicados. Se probó creación y materialización dentro de una transacción revertida, y se confirmó que el cron termina correctamente. No se creó ninguna regla real para clientes durante esta implementación.
 
+La Edge Function `list-scheduled-messages` devuelve desde el 7 de octubre tanto los envíos únicos como las reglas recurrentes activas. Esto evita que Copilot informe equivocadamente que no hay programación antes de que una regla semanal se materialice como envío. El asistente de Dolce debe usar esta consulta unificada ante cualquier pregunta sobre programaciones o próximo envío; `list_recurring_messages` queda para operar específicamente sobre folios `REC`.
+
 ## Resultado en producción
 
 Web y Sidekiq se desplegaron desde EasyPanel con `ghcr.io/maxnodo/chatwoot:v4.17.1-nodo.79`.
