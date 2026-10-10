@@ -109,6 +109,8 @@ const items = computed(() =>
 
 const onSelect = item => emit('replace', item.content, item.files);
 
+const isImage = file => file.file_type?.startsWith('image/');
+
 onMounted(() => store.dispatch('getCannedResponse'));
 </script>
 
@@ -134,13 +136,18 @@ onMounted(() => store.dispatch('getCannedResponse'));
         class="px-4 py-3 prose prose-bubble !max-w-none prose-a:text-n-brand"
       />
       <div v-if="item?.files?.length" class="flex gap-2 px-4 pb-3">
-        <img
-          v-for="file in item.files"
-          :key="file.id"
-          :src="file.file_url"
-          :alt="file.filename"
-          class="size-12 object-cover rounded"
-        />
+        <template v-for="file in item.files" :key="file.id">
+          <img
+            v-if="isImage(file)"
+            :src="file.file_url"
+            :alt="file.filename"
+            class="size-12 object-cover rounded"
+          />
+          <span
+            v-else
+            class="flex items-center justify-center size-12 text-xs font-medium bg-n-slate-3 text-n-slate-11 rounded"
+          >PDF</span>
+        </template>
       </div>
     </template>
   </CaretAnchoredPicker>

@@ -91,8 +91,8 @@ export default {
         });
     },
     onFilesSelected(event) {
-      this.files = Array.from(event.target.files || []).filter(file =>
-        file.type.startsWith('image/')
+      this.files = Array.from(event.target.files || []).filter(
+        file => file.type.startsWith('image/') || file.type === 'application/pdf'
       );
     },
     removeExistingFile(file) {
@@ -121,10 +121,10 @@ export default {
         </div>
         <div class="w-full mt-3">
           <label>
-            Imágenes
+            Imágenes o PDF
             <input
               type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
+              accept="image/png,image/jpeg,image/webp,image/gif,application/pdf"
               multiple
               @change="onFilesSelected"
             />
@@ -141,7 +141,7 @@ export default {
             </button>
           </div>
           <p v-if="files.length" class="text-sm text-n-slate-11 mt-1">
-            {{ files.length }} imagen{{ files.length === 1 ? '' : 'es' }} nueva{{ files.length === 1 ? '' : 's' }}
+            {{ files.length }} archivo{{ files.length === 1 ? '' : 's' }} nuevo{{ files.length === 1 ? '' : 's' }}
           </p>
         </div>
 
