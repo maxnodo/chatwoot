@@ -1,0 +1,24 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
+const url = Deno.env.get("SUPABASE_URL") ?? "";
+const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const headers = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-chatwoot-account-id, x-chatwoot-conversation-display-id, x-chatwoot-conversation-id, x-chatwoot-user-id", "Access-Control-Allow-Methods": "POST, OPTIONS" };
+const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...headers, "Content-Type": "application/json" } });
+Deno.serve(async req => {
+  if (req.method === "OPTIONS") return new Response(null, { headers });
+  if (req.method !== "POST") return reply({ error: "Method not allowed" }, 405);
+  const body = await req.json().catch(() => null);
+  if (!body) return reply({ error: "Invalid JSON body" }, 400);
+  const accountId = Number(req.headers.get("x-chatwoot-account-id") ?? body.account_id);
+  const conversationId = Number(req.headers.get("x-chatwoot-conversation-display-id") ?? req.headers.get("x-chatwoot-conversation-id") ?? body.conversation_id);
+  const objective = String(body.objective ?? "").trim();
+  const content = String(body.content ?? "").trim();
+  const proposedFor = String(body.proposed_for ?? "").trim();
+  if (![1, 25].includes(accountId) || !Number.isInteger(conversationId) || !objective || !content || !proposedFor) return reply({ error: "account_id, conversation_id, objective, content and proposed_for are required" }, 400);
+  const sb = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data: conv, error: convError } = await sb.from("conversations").select("id,inbox_id,account_id").eq("account_id", accountId).eq("display_id", conversationId).maybeSingle();
+  if (convError || !conv) return reply({ error: "Conversation not found" }, 404);
+  const { data, error } = await sb.from("nodo_message_campaign_drafts").insert({ account_id: accountId, inbox_id: conv.inbox_id, conversation_id: conv.id, objective, content, proposed_for: proposedFor }).select().single();
+  if (error) return reply({ error: error.message }, 422);
+  return reply({ ok: true, draft: data, message: `Borrador DRAFT-${data.id} creado y pendiente de aprobación.` });
+});
