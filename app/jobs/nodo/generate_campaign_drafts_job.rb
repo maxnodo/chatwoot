@@ -33,12 +33,22 @@ class Nodo::GenerateCampaignDraftsJob < ApplicationJob
         objective: locked['campaign_objective']
       ).perform
 
-      connection.execute(<<~SQL.squish)
+      draft_id = connection.select_value(<<~SQL.squish)
         INSERT INTO nodo_message_campaign_drafts
           (account_id, inbox_id, conversation_id, recurring_message_id, objective, content, status, proposed_for, created_at, updated_at)
         VALUES
           (#{connection.quote(locked['account_id'])}, #{connection.quote(locked['inbox_id'])}, #{connection.quote(locked['conversation_id'])}, #{connection.quote(locked['id'])}, #{connection.quote(locked['campaign_objective'])}, #{connection.quote(content)}, 'pending_review', #{connection.quote(locked['next_run_at'])}, now(), now())
+        RETURNING id
       SQL
+      Message.create!(
+        account: conversation.account,
+        inbox: conversation.inbox,
+        conversation: conversation,
+        sender: assistant,
+        message_type: :outgoing,
+        private: true,
+        content: "📝 Borrador DRAFT-#{draft_id} pendiente de revisión:\n\n#{content}\n\nNo se enviará hasta que el equipo lo apruebe."
+      )
       connection.execute(<<~SQL.squish)
         UPDATE nodo_weekly_recurring_messages
         SET last_materialized_at = next_run_at,
