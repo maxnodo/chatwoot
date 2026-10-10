@@ -4,7 +4,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const ALLOWED_ACCOUNT_IDS = [1, 25];
-const VALID_ACTIONS = ["create", "list", "update", "pause", "resume", "cancel"];
+const VALID_ACTIONS = ["create", "create_campaign", "list", "update", "pause", "resume", "cancel"];
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -90,6 +90,41 @@ Deno.serve(async (req) => {
   });
 
   try {
+    if (action === "create_campaign") {
+      const objective = String(body.objective ?? "").trim();
+      const weekday = Number(body.weekday);
+      const localTime = String(body.local_time ?? "").trim();
+      const assistantId = Number(body.assistant_id);
+      if (!objective || objective.length > 1000) {
+        return response({ error: "objective is required" }, 400);
+      }
+      if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) {
+        return response({ error: "weekday must be between 0 (Sunday) and 6 (Saturday)" }, 400);
+      }
+      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(localTime)) {
+        return response({ error: "local_time must use HH:MM" }, 400);
+      }
+      if (!Number.isInteger(assistantId) || assistantId < 1) {
+        return response({ error: "assistant_id is required" }, 400);
+      }
+      const { data, error } = await supabase.rpc("nodo_create_campaign_recurring_message", {
+        p_account_id: accountId,
+        p_conversation_display_id: conversationId,
+        p_objective: objective,
+        p_weekday: weekday,
+        p_local_time: localTime,
+        p_assistant_id: assistantId,
+        p_timezone: "Europe/Madrid",
+        p_user_id: Number.isFinite(userId) ? userId : null,
+      });
+      if (error) throw error;
+      return response({
+        ok: true,
+        rule: data,
+        message: `Campaña REC-${data.id} creada. En cada fecha generará un borrador nuevo para revisión; no se enviará automáticamente.`,
+      });
+    }
+
     if (action === "create") {
       const content = String(body.content ?? "").trim();
       const weekday = Number(body.weekday);
