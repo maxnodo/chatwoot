@@ -8,11 +8,14 @@ class Api::V1::Accounts::CannedResponsesController < Api::V1::Accounts::BaseCont
   def create
     @canned_response = Current.account.canned_responses.new(canned_response_params)
     @canned_response.save!
+    @canned_response.files.attach(uploaded_files) if uploaded_files.present?
     render json: @canned_response
   end
 
   def update
     @canned_response.update!(canned_response_params)
+    @canned_response.files.attach(uploaded_files) if uploaded_files.present?
+    attachments_to_remove.each { |id| @canned_response.files.find_by(id: id)&.purge }
     render json: @canned_response
   end
 
@@ -29,6 +32,14 @@ class Api::V1::Accounts::CannedResponsesController < Api::V1::Accounts::BaseCont
 
   def canned_response_params
     params.require(:canned_response).permit(:short_code, :content)
+  end
+
+  def uploaded_files
+    params.require(:canned_response).permit(files: [])[:files]
+  end
+
+  def attachments_to_remove
+    params.require(:canned_response).permit(remove_file_ids: [])[:remove_file_ids] || []
   end
 
   def canned_responses

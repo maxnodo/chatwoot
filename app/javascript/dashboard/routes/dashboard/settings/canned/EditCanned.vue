@@ -17,6 +17,7 @@ export default {
     id: { type: Number, default: null },
     edcontent: { type: String, default: '' },
     edshortCode: { type: String, default: '' },
+    edfiles: { type: Array, default: () => [] },
     onClose: { type: Function, default: () => {} },
   },
   setup() {
@@ -30,6 +31,9 @@ export default {
       },
       shortCode: this.edshortCode,
       content: this.edcontent,
+      files: [],
+      existingFiles: this.edfiles,
+      removeFileIds: [],
       show: true,
     };
   },
@@ -67,6 +71,8 @@ export default {
           id: this.id,
           short_code: this.shortCode,
           content: this.content,
+          files: this.files,
+          remove_file_ids: this.removeFileIds,
         })
         .then(() => {
           // Reset Form, Show success message
@@ -83,6 +89,15 @@ export default {
             error?.message || this.$t('CANNED_MGMT.EDIT.API.ERROR_MESSAGE');
           useAlert(errorMessage);
         });
+    },
+    onFilesSelected(event) {
+      this.files = Array.from(event.target.files || []).filter(file =>
+        file.type.startsWith('image/')
+      );
+    },
+    removeExistingFile(file) {
+      this.removeFileIds.push(file.id);
+      this.existingFiles = this.existingFiles.filter(item => item.id !== file.id);
     },
   },
 };
@@ -103,6 +118,31 @@ export default {
               @input="v$.shortCode.$touch"
             />
           </label>
+        </div>
+        <div class="w-full mt-3">
+          <label>
+            Imágenes
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              multiple
+              @change="onFilesSelected"
+            />
+          </label>
+          <div v-if="existingFiles.length" class="flex flex-wrap gap-2 mt-2">
+            <button
+              v-for="file in existingFiles"
+              :key="file.id"
+              type="button"
+              class="text-sm text-n-ruby-11"
+              @click="removeExistingFile(file)"
+            >
+              Quitar {{ file.filename }}
+            </button>
+          </div>
+          <p v-if="files.length" class="text-sm text-n-slate-11 mt-1">
+            {{ files.length }} imagen{{ files.length === 1 ? '' : 'es' }} nueva{{ files.length === 1 ? '' : 's' }}
+          </p>
         </div>
 
         <div class="w-full">

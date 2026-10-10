@@ -1153,6 +1153,24 @@ export default {
         });
       };
     },
+    addCannedResponseFiles(files) {
+      files.forEach(file => {
+        if (this.attachedFiles.some(item => item.resource?.id === file.id)) return;
+        this.attachedFiles.push({
+          currentChatId: this.currentChat.id,
+          resource: {
+            id: file.id,
+            filename: file.filename,
+            content_type: file.file_type,
+            byte_size: file.byte_size,
+          },
+          isPrivate: this.isPrivate,
+          thumb: file.file_url,
+          blobSignedId: file.blob_signed_id,
+          isVoiceMessage: false,
+        });
+      });
+    },
     removeAttachment(attachments) {
       this.attachedFiles = attachments;
     },
@@ -1453,6 +1471,7 @@ export default {
           @execute-macro="onExecuteMacro"
           @clear-selection="clearEditorSelection"
           @execute-copilot-action="executeCopilotAction"
+          @canned-response-selected="addCannedResponseFiles"
         />
 
         <QuotedEmailPreview

@@ -31,6 +31,7 @@ export default {
     return {
       shortCode: '',
       content: this.responseContent || '',
+      files: [],
       addCanned: {
         showLoading: false,
         message: '',
@@ -51,6 +52,7 @@ export default {
     resetForm() {
       this.shortCode = '';
       this.content = '';
+      this.files = [];
       this.v$.shortCode.$reset();
       this.v$.content.$reset();
     },
@@ -62,6 +64,7 @@ export default {
         .dispatch('createCannedResponse', {
           short_code: this.shortCode,
           content: this.content,
+          files: this.files,
         })
         .then(() => {
           // Reset Form, Show success message
@@ -76,6 +79,11 @@ export default {
             error?.message || this.$t('CANNED_MGMT.ADD.API.ERROR_MESSAGE');
           useAlert(errorMessage);
         });
+    },
+    onFilesSelected(event) {
+      this.files = Array.from(event.target.files || []).filter(file =>
+        file.type.startsWith('image/')
+      );
     },
   },
 };
@@ -99,6 +107,20 @@ export default {
               @blur="v$.shortCode.$touch"
             />
           </label>
+        </div>
+        <div class="w-full mt-3">
+          <label>
+            Imágenes opcionales
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              multiple
+              @change="onFilesSelected"
+            />
+          </label>
+          <p v-if="files.length" class="text-sm text-n-slate-11 mt-1">
+            {{ files.length }} imagen{{ files.length === 1 ? '' : 'es' }} seleccionada{{ files.length === 1 ? '' : 's' }}
+          </p>
         </div>
 
         <div class="w-full">

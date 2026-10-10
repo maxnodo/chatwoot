@@ -114,6 +114,7 @@ const emit = defineEmits([
   'input',
   'update:modelValue',
   'executeCopilotAction',
+  'cannedResponseSelected',
 ]);
 
 const { t } = useI18n();
@@ -135,6 +136,11 @@ const INLINE_IMAGE_PASTE_TYPES = [
 const effectiveChannelType = computed(() =>
   getEffectiveChannelType(props.channelType, props.medium)
 );
+
+const onCannedResponseSelected = (content, files = []) => {
+  insertSpecialContent('cannedResponse', content);
+  if (files.length) emit('cannedResponseSelected', files);
+};
 
 const editorSchema = computed(() => {
   if (!props.channelType) return messageSchema;
@@ -963,7 +969,7 @@ useEmitter(BUS_EVENTS.INSERT_INTO_RICH_EDITOR, insertContentIntoEditor);
       :schema="editorSchema"
       @close="dismissCannedResponses"
       @remove-trigger="removeSuggestionTrigger"
-      @replace="content => insertSpecialContent('cannedResponse', content)"
+      @replace="onCannedResponseSelected"
     />
     <VariableList
       v-if="shouldShowVariables"

@@ -73,7 +73,7 @@ const resolveContent = message =>
   );
 
 const records = computed(() =>
-  cannedResponses.value.map(({ id, short_code: shortCode, content }) => {
+  cannedResponses.value.map(({ id, short_code: shortCode, content, files = [] }) => {
     const resolved = resolveContent(content);
     return {
       id,
@@ -81,6 +81,7 @@ const records = computed(() =>
       resolved,
       shortCode,
       plainText: getPlainText(resolved).replace(/\s+/g, ' ').trim(),
+      files,
     };
   })
 );
@@ -99,13 +100,14 @@ const items = computed(() =>
     id: record.id,
     content: record.content,
     resolved: record.resolved,
+    files: record.files,
     label: `/${record.shortCode}`,
     title: highlightMatches(`/${record.shortCode}`),
     subtitle: highlightMatches(buildSnippet(record.plainText)),
   }))
 );
 
-const onSelect = item => emit('replace', item.content);
+const onSelect = item => emit('replace', item.content, item.files);
 
 onMounted(() => store.dispatch('getCannedResponse'));
 </script>
@@ -131,6 +133,15 @@ onMounted(() => store.dispatch('getCannedResponse'));
         v-dompurify-html="formatMessage(item?.resolved || '')"
         class="px-4 py-3 prose prose-bubble !max-w-none prose-a:text-n-brand"
       />
+      <div v-if="item?.files?.length" class="flex gap-2 px-4 pb-3">
+        <img
+          v-for="file in item.files"
+          :key="file.id"
+          :src="file.file_url"
+          :alt="file.filename"
+          class="size-12 object-cover rounded"
+        />
+      </div>
     </template>
   </CaretAnchoredPicker>
 </template>
