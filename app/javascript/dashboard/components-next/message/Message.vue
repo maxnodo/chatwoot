@@ -45,6 +45,7 @@ import WhatsappFlowResponseBubble from './bubbles/WhatsappFlowResponse.vue';
 import WhatsappReferral from './bubbles/Text/WhatsappReferral.vue';
 
 import MessageError from './MessageError.vue';
+import CampaignDraftActions from './CampaignDraftActions.vue';
 import ContextMenu from 'dashboard/modules/conversations/components/MessageContextMenu.vue';
 import { useBranding } from 'shared/composables/useBranding';
 
@@ -589,6 +590,7 @@ provideMessageContext({
           'ltr:ml-8 rtl:mr-8 justify-end': orientation === ORIENTATION.RIGHT,
           'ltr:mr-8 rtl:ml-8': orientation === ORIENTATION.LEFT,
           'flex-col items-start gap-2': shouldShowWhatsappReferral,
+          'flex-col items-end gap-2': additionalAttributes?.nodoCampaignDraftId,
         }"
         @contextmenu="openContextMenu($event)"
       >
@@ -597,6 +599,12 @@ provideMessageContext({
           :referral="contentAttributes.referral"
         />
         <Component :is="componentToRender" />
+        <CampaignDraftActions
+          v-if="additionalAttributes?.nodoCampaignDraftId"
+          :draft-id="Number(additionalAttributes.nodoCampaignDraftId)"
+          :conversation-id="conversationId"
+          :status="additionalAttributes.nodoCampaignDraftStatus"
+        />
       </div>
       <MessageError
         v-if="contentAttributes.externalError"

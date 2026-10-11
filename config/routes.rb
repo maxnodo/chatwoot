@@ -178,6 +178,13 @@ Rails.application.routes.draw do
                   post :retry
                 end
               end
+              resources :campaign_drafts, only: [] do
+                member do
+                  post :approve
+                  post :reject
+                  post :regenerate
+                end
+              end
               resources :assignments, only: [:create]
               resources :labels, only: [:create, :index]
               resource :participants, only: [:show, :create, :update, :destroy]

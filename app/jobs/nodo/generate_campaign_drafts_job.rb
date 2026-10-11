@@ -47,6 +47,7 @@ class Nodo::GenerateCampaignDraftsJob < ApplicationJob
         sender: assistant,
         message_type: :outgoing,
         private: true,
+        additional_attributes: { nodo_campaign_draft_id: draft_id, nodo_campaign_draft_status: 'pending_review' },
         content: "📝 Borrador DRAFT-#{draft_id} pendiente de revisión:\n\n#{content}\n\nNo se enviará hasta que el equipo lo apruebe."
       )
       notify_account_administrators(conversation, review_message)
