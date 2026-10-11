@@ -40,7 +40,7 @@ class Nodo::GenerateCampaignDraftsJob < ApplicationJob
           (#{connection.quote(locked['account_id'])}, #{connection.quote(locked['inbox_id'])}, #{connection.quote(locked['conversation_id'])}, #{connection.quote(locked['id'])}, #{connection.quote(locked['campaign_objective'])}, #{connection.quote(content)}, 'pending_review', #{connection.quote(locked['next_run_at'])}, now(), now())
         RETURNING id
       SQL
-      Message.create!(
+      review_message = Message.create!(
         account: conversation.account,
         inbox: conversation.inbox,
         conversation: conversation,
@@ -49,6 +49,7 @@ class Nodo::GenerateCampaignDraftsJob < ApplicationJob
         private: true,
         content: "📝 Borrador DRAFT-#{draft_id} pendiente de revisión:\n\n#{content}\n\nNo se enviará hasta que el equipo lo apruebe."
       )
+      notify_account_administrators(conversation, review_message)
       connection.execute(<<~SQL.squish)
         UPDATE nodo_weekly_recurring_messages
         SET last_materialized_at = next_run_at,
@@ -64,5 +65,19 @@ class Nodo::GenerateCampaignDraftsJob < ApplicationJob
 
   def connection
     ActiveRecord::Base.connection
+  end
+
+  # A campaign draft is an internal task. Alert administrators who can access
+  # the conversation so they can review it from the web or mobile app.
+  def notify_account_administrators(conversation, message)
+    AccountUser.where(account_id: conversation.account_id, role: :administrator).includes(:user).find_each do |account_user|
+      NotificationBuilder.new(
+        notification_type: 'participating_conversation_new_message',
+        user: account_user.user,
+        account: conversation.account,
+        primary_actor: conversation,
+        secondary_actor: message
+      ).perform
+    end
   end
 end
