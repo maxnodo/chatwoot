@@ -40,10 +40,12 @@ nodo_last_message =
                 .reorder(created_at: :desc, id: :desc).first
   end
 
+nodo_last_message_payload = nodo_last_message&.push_event_data
+
 if nodo_last_message.blank?
   json.messages []
 else
-  json.messages [nodo_last_message.push_event_data]
+  json.messages [nodo_last_message_payload]
 end
 
 json.account_id conversation.account_id
