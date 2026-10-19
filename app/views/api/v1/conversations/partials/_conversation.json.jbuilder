@@ -12,12 +12,13 @@ json.meta do
       json.partial! 'api/v1/models/agent_bot_slim', formats: [:json], resource: conversation.assigned_entity
     end
     json.assignee_type 'AgentBot'
-  elsif conversation.assigned_entity&.account
+  elsif conversation.assignee_type == 'User'
     json.assignee do
       json.partial! 'api/v1/models/agent', formats: [:json], resource: conversation.assigned_entity
     end
     json.assignee_type 'User'
   end
+  json.partial! 'enterprise/api/v1/conversations/partials/assignee', conversation: conversation if ChatwootApp.enterprise?
   if conversation.team.present?
     json.team do
       json.partial! 'api/v1/models/team', formats: [:json], resource: conversation.team
@@ -27,22 +28,23 @@ json.meta do
 end
 
 json.id conversation.display_id
-
-# NODO PATCH 10: usar el batch del controller si está presente (lista); si no,
-# comportamiento original memoizado (show/create/update y renders unitarios).
+# The dashboard seeds the message thread from this array and then paginates BACKWARD
+# by id. Preserve Nodo's controller-level batch, and use the upstream stable ordering
+# whenever the partial loads an individual conversation.
 nodo_last_message =
   if @nodo_last_messages
     @nodo_last_messages[conversation.id]
   else
     conversation.messages.where(account_id: conversation.account_id)
-                .includes([{ attachments: [{ file_attachment: [:blob] }] }]).last
+                .includes([{ attachments: [{ file_attachment: [:blob] }] }])
+                .reorder(created_at: :desc, id: :desc).first
   end
-nodo_last_message_payload = nodo_last_message.try(:push_event_data)
 
 if nodo_last_message.blank?
   json.messages []
 else
-  json.messages [nodo_last_message_payload]
+  json.messages [nodo_last_message.push_event_data]
+end
 end
 
 json.account_id conversation.account_id
@@ -51,6 +53,12 @@ json.additional_attributes conversation.additional_attributes
 json.agent_last_seen_at conversation.agent_last_seen_at.to_i
 json.assignee_last_seen_at conversation.assignee_last_seen_at.to_i
 json.can_reply conversation.can_reply?
+# Temporarily disable this action to avoid message-history lookups during conversation rendering.
+json.contact_info_request do
+  json.available false
+  json.reason nil
+  json.delivery_mode nil
+end
 json.contact_last_seen_at conversation.contact_last_seen_at.to_i
 json.custom_attributes conversation.custom_attributes
 json.inbox_id conversation.inbox_id
