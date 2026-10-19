@@ -1,7 +1,7 @@
 <script setup>
-/* eslint-disable vue/no-bare-strings-in-template */
 import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
   draftId: { type: Number, required: true },
@@ -10,6 +10,7 @@ const props = defineProps({
 });
 
 const route = useRoute();
+const { t } = useI18n();
 const state = ref(props.status);
 const error = ref('');
 const loading = ref(false);
@@ -30,7 +31,7 @@ const perform = async (action, payload = {}) => {
       response.data.status || (action === 'approve' ? 'scheduled' : 'rejected');
   } catch (err) {
     error.value =
-      err.response?.data?.error || 'No se pudo completar la acción.';
+      err.response?.data?.error || t('CONVERSATION.CAMPAIGN_DRAFT.ACTION_ERROR');
   } finally {
     loading.value = false;
   }
@@ -47,22 +48,26 @@ const regenerate = () => perform('regenerate');
     class="mt-2 w-full max-w-xl rounded-xl border border-n-amber-7 bg-n-amber-2 p-3 text-n-slate-12"
   >
     <div class="mb-2 flex items-center justify-between gap-3">
-      <span class="text-sm font-semibold">Borrador DRAFT-{{ draftId }}</span>
+      <span class="text-sm font-semibold">
+        {{ t('CONVERSATION.CAMPAIGN_DRAFT.TITLE', { id: draftId }) }}
+      </span>
       <span class="rounded-full bg-n-amber-4 px-2 py-0.5 text-xs font-medium">
         {{
           state === 'pending_review'
-            ? 'Pendiente de revisión'
+            ? t('CONVERSATION.CAMPAIGN_DRAFT.STATUS.PENDING_REVIEW')
             : state === 'scheduled'
-              ? 'Programado'
-              : 'Rechazado'
+              ? t('CONVERSATION.CAMPAIGN_DRAFT.STATUS.SCHEDULED')
+              : t('CONVERSATION.CAMPAIGN_DRAFT.STATUS.REJECTED')
         }}
       </span>
     </div>
     <p v-if="isPending" class="mb-3 text-sm text-n-slate-11">
-      Este mensaje no se enviará hasta que lo apruebes.
+      {{ t('CONVERSATION.CAMPAIGN_DRAFT.PENDING_DESCRIPTION') }}
     </p>
     <div v-if="isPending" class="mb-3 flex items-center gap-2">
-      <label class="text-xs font-medium" for="campaign-send-at">Enviar</label>
+      <label class="text-xs font-medium" for="campaign-send-at">
+        {{ t('CONVERSATION.CAMPAIGN_DRAFT.SEND_AT') }}
+      </label>
       <input
         id="campaign-send-at"
         v-model="date"
@@ -77,7 +82,7 @@ const regenerate = () => perform('regenerate');
         :disabled="loading"
         @click="approve"
       >
-        Aprobar y programar
+        {{ t('CONVERSATION.CAMPAIGN_DRAFT.APPROVE_AND_SCHEDULE') }}
       </button>
       <button
         type="button"
@@ -85,7 +90,7 @@ const regenerate = () => perform('regenerate');
         :disabled="loading"
         @click="regenerate"
       >
-        Nueva versión
+        {{ t('CONVERSATION.CAMPAIGN_DRAFT.REGENERATE') }}
       </button>
       <button
         type="button"
@@ -93,7 +98,7 @@ const regenerate = () => perform('regenerate');
         :disabled="loading"
         @click="reject"
       >
-        Rechazar
+        {{ t('CONVERSATION.CAMPAIGN_DRAFT.REJECT') }}
       </button>
     </div>
     <p v-if="error" class="mt-2 text-xs text-n-ruby-11">{{ error }}</p>

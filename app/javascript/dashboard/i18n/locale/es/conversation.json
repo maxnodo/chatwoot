@@ -7,6 +7,20 @@
       "WELCOME_MESSAGE_LABEL": "Mensaje prellenado: ",
       "REPLIED_BELOW": "El cliente respondió a continuación"
     },
+    "CAMPAIGN_DRAFT": {
+      "TITLE": "Borrador DRAFT-{id}",
+      "STATUS": {
+        "PENDING_REVIEW": "Pendiente de revisión",
+        "SCHEDULED": "Programado",
+        "REJECTED": "Rechazado"
+      },
+      "PENDING_DESCRIPTION": "Este mensaje no se enviará hasta que lo apruebes.",
+      "SEND_AT": "Enviar",
+      "APPROVE_AND_SCHEDULE": "Aprobar y programar",
+      "REGENERATE": "Nueva versión",
+      "REJECT": "Rechazar",
+      "ACTION_ERROR": "No se pudo completar la acción."
+    },
     "SELECT_A_CONVERSATION": "Por favor, selecciona una conversación del panel izquierdo",
     "CSAT_REPLY_MESSAGE": "Por favor, valora la conversación",
     "404": "Lo sentimos, no podemos encontrar la conversación. Por favor, inténtalo de nuevo",

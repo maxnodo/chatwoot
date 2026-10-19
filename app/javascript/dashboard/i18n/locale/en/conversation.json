@@ -7,6 +7,20 @@
       "WELCOME_MESSAGE_LABEL": "Pre-filled message: ",
       "REPLIED_BELOW": "Customer replied below"
     },
+    "CAMPAIGN_DRAFT": {
+      "TITLE": "Draft DRAFT-{id}",
+      "STATUS": {
+        "PENDING_REVIEW": "Pending review",
+        "SCHEDULED": "Scheduled",
+        "REJECTED": "Rejected"
+      },
+      "PENDING_DESCRIPTION": "This message will not be sent until you approve it.",
+      "SEND_AT": "Send at",
+      "APPROVE_AND_SCHEDULE": "Approve and schedule",
+      "REGENERATE": "New version",
+      "REJECT": "Reject",
+      "ACTION_ERROR": "Could not complete the action."
+    },
     "SELECT_A_CONVERSATION": "Please select a conversation from left pane",
     "CSAT_REPLY_MESSAGE": "Please rate the conversation",
     "404": "Sorry, we cannot find the conversation. Please try again",
