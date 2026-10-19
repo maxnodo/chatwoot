@@ -331,9 +331,7 @@ export default {
             emoji="🌍"
             :title="$t('CONTACT_PANEL.LOCATION')"
           />
-          <ContactLocalTime
-            :country-code="additionalAttributes.country_code"
-          />
+          <ContactLocalTime :country-code="additionalAttributes.country_code" />
           <SocialIcons :social-profiles="socialProfiles" />
         </div>
       </div>

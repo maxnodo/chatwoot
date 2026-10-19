@@ -1152,7 +1152,8 @@ export default {
     },
     addCannedResponseFiles(files) {
       files.forEach(file => {
-        if (this.attachedFiles.some(item => item.resource?.id === file.id)) return;
+        if (this.attachedFiles.some(item => item.resource?.id === file.id))
+          return;
         this.attachedFiles.push({
           currentChatId: this.currentChat.id,
           resource: {
@@ -1250,7 +1251,10 @@ export default {
       if (this.attachedFiles && this.attachedFiles.length) {
         messagePayload.files = [];
         this.attachedFiles.forEach(attachment => {
-          if (this.globalConfig.directUploadsEnabled || attachment.blobSignedId) {
+          if (
+            this.globalConfig.directUploadsEnabled ||
+            attachment.blobSignedId
+          ) {
             messagePayload.files.push(attachment.blobSignedId);
             if (attachment.isVoiceMessage) {
               messagePayload.isVoiceMessage = true;
