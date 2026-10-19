@@ -45,7 +45,6 @@ if nodo_last_message.blank?
 else
   json.messages [nodo_last_message.push_event_data]
 end
-end
 
 json.account_id conversation.account_id
 json.uuid conversation.uuid
