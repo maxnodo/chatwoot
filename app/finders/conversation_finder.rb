@@ -196,10 +196,9 @@ class ConversationFinder
     # polimórfico; sin precarga son 2 queries por conversación (DB remota ~17ms).
     @conversations.includes(
       :taggings, :account, :team, :contact_inbox,
-      { inbox: :channel },
       { assignee: { avatar_attachment: [:blob] } },
       { contact: { avatar_attachment: [:blob] } }
-    ).preload(ai_assignee: { avatar_attachment: [:blob] })
+    ).preload(inbox: :channel, ai_assignee: { avatar_attachment: [:blob] })
   end
 
   def conversations
