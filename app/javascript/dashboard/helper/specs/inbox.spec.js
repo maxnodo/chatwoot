@@ -179,7 +179,7 @@ describe('#Inbox Helpers', () => {
       });
 
       it('returns correct icon for API', () => {
-        expect(getInboxIconByType(INBOX_TYPES.API)).toBe('i-ri-cloudy-fill');
+        expect(getInboxIconByType(INBOX_TYPES.API)).toBe('i-ri-whatsapp-fill');
       });
 
       it('returns correct icon for Email', () => {

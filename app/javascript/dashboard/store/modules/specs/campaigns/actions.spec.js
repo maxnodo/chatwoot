@@ -38,7 +38,7 @@ describe('#actions', () => {
       ]);
     });
     it('sends correct actions if API is error', async () => {
-      axios.post.mockRejectedValue({ message: 'Incorrect header' });
+      axios.post.mockRejectedValue(new Error('Incorrect header'));
       await expect(actions.create({ commit })).rejects.toThrow(Error);
       expect(commit.mock.calls).toEqual([
         [types.default.SET_CAMPAIGN_UI_FLAG, { isCreating: true }],
