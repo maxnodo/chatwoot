@@ -15,7 +15,14 @@
   (Api::OneoffCampaignService). Acá solo damos feedback visual.
 -->
 <script setup>
-import { reactive, computed, ref, watch, onMounted, onBeforeUnmount } from 'vue';
+import {
+  reactive,
+  computed,
+  ref,
+  watch,
+  onMounted,
+  onBeforeUnmount,
+} from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useVuelidate } from '@vuelidate/core';
 import { required, minLength, url, maxLength } from '@vuelidate/validators';
@@ -115,9 +122,12 @@ const fetchQuota = async () => {
   }
 };
 
-watch(() => state.inboxId, () => {
-  fetchQuota();
-});
+watch(
+  () => state.inboxId,
+  () => {
+    fetchQuota();
+  }
+);
 
 onMounted(() => {
   quotaTimer = setInterval(() => {
@@ -129,9 +139,7 @@ onBeforeUnmount(() => {
   if (quotaTimer) clearInterval(quotaTimer);
 });
 
-const hasActiveCampaign = computed(
-  () => !!quota.value?.active_campaign
-);
+const hasActiveCampaign = computed(() => !!quota.value?.active_campaign);
 
 // NODO PATCH 12: si la campaña activa todavía no despachó nada, comunicamos
 // "programada para las HH:MM" en vez de "N mensajes pendientes".
@@ -172,8 +180,8 @@ const formErrors = computed(() => ({
     : '',
 }));
 
-const isSubmitDisabled = computed(() =>
-  v$.value.$invalid || hasActiveCampaign.value
+const isSubmitDisabled = computed(
+  () => v$.value.$invalid || hasActiveCampaign.value
 );
 
 const formatToUTCString = localDateTime =>
@@ -231,14 +239,18 @@ const handleSubmit = async () => {
       :placeholder="t('CAMPAIGN.EVOLUTION.CREATE.FORM.MESSAGE.PLACEHOLDER')"
       show-character-count
       :max-length="4000"
-      :message="formErrors.message || t('CAMPAIGN.EVOLUTION.CREATE.FORM.MESSAGE.HINT')"
+      :message="
+        formErrors.message || t('CAMPAIGN.EVOLUTION.CREATE.FORM.MESSAGE.HINT')
+      "
       :message-type="formErrors.message ? 'error' : 'info'"
     />
 
     <Input
       v-model="state.attachmentUrl"
       :label="t('CAMPAIGN.EVOLUTION.CREATE.FORM.ATTACHMENT_URL.LABEL')"
-      :placeholder="t('CAMPAIGN.EVOLUTION.CREATE.FORM.ATTACHMENT_URL.PLACEHOLDER')"
+      :placeholder="
+        t('CAMPAIGN.EVOLUTION.CREATE.FORM.ATTACHMENT_URL.PLACEHOLDER')
+      "
       :message="formErrors.attachmentUrl"
       :message-type="formErrors.attachmentUrl ? 'error' : 'info'"
     />
@@ -265,15 +277,17 @@ const handleSubmit = async () => {
     >
       <span class="font-medium">
         ⚠️
-        {{ activeCampaignIsScheduled
-          ? t('CAMPAIGN.EVOLUTION.QUOTA.ACTIVE_CAMPAIGN_SCHEDULED', {
-            title: quota.active_campaign.title,
-            time: activeCampaignTime,
-          })
-          : t('CAMPAIGN.EVOLUTION.QUOTA.ACTIVE_CAMPAIGN', {
-            title: quota.active_campaign.title,
-            pending: quota.active_campaign.pending_count,
-          }) }}
+        {{
+          activeCampaignIsScheduled
+            ? t('CAMPAIGN.EVOLUTION.QUOTA.ACTIVE_CAMPAIGN_SCHEDULED', {
+                title: quota.active_campaign.title,
+                time: activeCampaignTime,
+              })
+            : t('CAMPAIGN.EVOLUTION.QUOTA.ACTIVE_CAMPAIGN', {
+                title: quota.active_campaign.title,
+                pending: quota.active_campaign.pending_count,
+              })
+        }}
       </span>
       <span>{{ t('CAMPAIGN.EVOLUTION.QUOTA.WAIT_HINT') }}</span>
     </div>
@@ -281,11 +295,14 @@ const handleSubmit = async () => {
       v-else-if="state.inboxId && quota"
       class="text-xs px-3 py-2 rounded-md bg-n-alpha-2 text-n-slate-11"
     >
-      📊 {{ t('CAMPAIGN.EVOLUTION.QUOTA.AVAILABLE', {
-        available: slotsAvailable,
-        used: slotsUsed,
-        cap: dailyCap,
-      }) }}
+      📊
+      {{
+        t('CAMPAIGN.EVOLUTION.QUOTA.AVAILABLE', {
+          available: slotsAvailable,
+          used: slotsUsed,
+          cap: dailyCap,
+        })
+      }}
     </div>
     <div
       v-else-if="state.inboxId && quotaError"
@@ -314,7 +331,9 @@ const handleSubmit = async () => {
       :label="t('CAMPAIGN.EVOLUTION.CREATE.FORM.SCHEDULED_AT.LABEL')"
       type="datetime-local"
       :min="currentDateTime"
-      :placeholder="t('CAMPAIGN.EVOLUTION.CREATE.FORM.SCHEDULED_AT.PLACEHOLDER')"
+      :placeholder="
+        t('CAMPAIGN.EVOLUTION.CREATE.FORM.SCHEDULED_AT.PLACEHOLDER')
+      "
       :message="formErrors.scheduledAt"
       :message-type="formErrors.scheduledAt ? 'error' : 'info'"
     />

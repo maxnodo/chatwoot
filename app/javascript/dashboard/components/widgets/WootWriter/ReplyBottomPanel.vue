@@ -10,13 +10,20 @@ import { getAllowedFileTypesByChannel } from '@chatwoot/utils';
 import VideoCallButton from '../VideoCallButton.vue';
 // NODO PATCH 9: botón de link de pago Stripe en el composer
 import PaymentLinkButton from '../conversation/PaymentLinkButton.vue';
+import RequestContactInfoButton from '../RequestContactInfoButton.vue';
 import { INBOX_TYPES } from 'dashboard/helper/inbox';
 import { mapGetters } from 'vuex';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 
 export default {
   name: 'ReplyBottomPanel',
-  components: { NextButton, FileUpload, VideoCallButton, PaymentLinkButton },
+  components: {
+    NextButton,
+    FileUpload,
+    VideoCallButton,
+    PaymentLinkButton,
+    RequestContactInfoButton,
+  },
   mixins: [inboxMixin],
   props: {
     isNote: {
@@ -134,6 +141,7 @@ export default {
     'selectContentTemplate',
     'toggleQuotedReply',
     'insertPaymentLink',
+    'requestContactInfoTemplate',
   ],
   setup(props) {
     const { setSignatureFlagForInbox, fetchSignatureFlagFromUISettings } =
@@ -360,6 +368,10 @@ export default {
         faded
         sm
         @click="$emit('selectWhatsappTemplate')"
+      />
+      <RequestContactInfoButton
+        v-if="!isOnPrivateNote"
+        @request-template="$emit('requestContactInfoTemplate')"
       />
       <NextButton
         v-if="enableContentTemplates"

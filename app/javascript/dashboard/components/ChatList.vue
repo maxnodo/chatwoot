@@ -10,7 +10,7 @@ import {
   onBeforeUnmount,
 } from 'vue';
 import { useStore } from 'vuex';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 import {
   useMapGetter,
   useFunctionGetter,
@@ -48,17 +48,13 @@ import filterQueryGenerator from '../helper/filterQueryGenerator.js';
 import languages from 'dashboard/components/widgets/conversation/advancedFilterItems/languages';
 import countries from 'shared/constants/countries';
 import { generateValuesForEditCustomViews } from 'dashboard/helper/customViewsHelper';
-import { conversationListPageURL } from '../helper/URLHelper';
-import {
-  isOnMentionsView,
-  isOnParticipatingView,
-  isOnUnattendedView,
-} from '../store/modules/conversations/helpers/actionHelpers';
+import { useConversationRoutePath } from 'dashboard/composables/useConversationRoutePath';
 import {
   getUserPermissions,
   filterItemsByPermission,
 } from 'dashboard/helper/permissionsHelper.js';
 import { matchesFilters } from '../store/modules/conversations/helpers/filterHelpers';
+import { sortComparator } from '../store/modules/conversations/helpers';
 import { CONVERSATION_EVENTS } from '../helper/AnalyticsHelper/events';
 import { ASSIGNEE_TYPE_TAB_PERMISSIONS } from 'dashboard/constants/permissions.js';
 
@@ -76,8 +72,8 @@ const emit = defineEmits(['conversationLoad']);
 const { uiSettings } = useUISettings();
 const { t } = useI18n();
 const router = useRouter();
-const route = useRoute();
 const store = useStore();
+const { buildConversationListPath } = useConversationRoutePath();
 
 const resolveAttributesModalRef = ref(null);
 
@@ -88,7 +84,7 @@ const showAdvancedFilters = ref(false);
 // chatsOnView is to store the chats that are currently visible on the screen,
 // which mirrors the conversationList.
 const chatsOnView = ref([]);
-const foldersQuery = ref({});
+const foldersQuery = useMapGetter('getAppliedConversationFiltersQuery');
 const showAddFoldersModal = ref(false);
 const showDeleteFoldersModal = ref(false);
 const appliedFilter = ref([]);
@@ -109,6 +105,7 @@ const chatListLoading = useMapGetter('getChatListLoadingStatus');
 const activeInbox = useMapGetter('getSelectedInbox');
 const conversationStats = useMapGetter('conversationStats/getStats');
 const appliedFilters = useMapGetter('getAppliedConversationFiltersV2');
+const appliedContactFilter = useMapGetter('getAppliedContactFilter');
 const folders = useMapGetter('customViews/getConversationCustomViews');
 const agentList = useMapGetter('agents/getAgents');
 const teamsList = useMapGetter('teams/getTeams');
@@ -318,12 +315,9 @@ function filterByAssigneeTab(conversations) {
 }
 
 function sortByUnreadStatus(conversations) {
-  return [...conversations].sort((a, b) => {
-    const unreadCountDiff = (b.unread_count || 0) - (a.unread_count || 0);
-    if (unreadCountDiff !== 0) return unreadCountDiff;
-
-    return (b.last_activity_at || 0) - (a.last_activity_at || 0);
-  });
+  return [...conversations].sort((a, b) =>
+    sortComparator(a, b, wootConstants.SORT_BY_TYPE.UNREAD)
+  );
 }
 
 const conversationList = computed(() => {
@@ -409,6 +403,7 @@ function fetchFilteredConversations(payload) {
     .dispatch('fetchFilteredConversations', {
       queryData: filterQueryGenerator(payload),
       page,
+      sortBy: activeSortBy.value,
     })
     .catch(() => useAlert(t('CHAT_LIST.FETCH_ERROR')))
     // emit even on failure so a deep-linked conversation still loads via
@@ -425,6 +420,7 @@ function fetchSavedFilteredConversations(payload) {
     .dispatch('fetchFilteredConversations', {
       queryData: payload,
       page,
+      sortBy: activeSortBy.value,
     })
     .catch(() => useAlert(t('CHAT_LIST.FETCH_ERROR')))
     .finally(emitConversationLoaded);
@@ -432,11 +428,11 @@ function fetchSavedFilteredConversations(payload) {
 
 function onApplyFilter(payload) {
   payload = useSnakeCase(payload);
-  resetBulkActions();
-  foldersQuery.value = filterQueryGenerator(payload);
-  store.dispatch('conversationPage/reset');
-  store.dispatch('emptyAllConversations');
-  fetchFilteredConversations(payload);
+  showAdvancedFilters.value = false;
+  store
+    .dispatch('applyConversationFilters', { filters: payload })
+    .catch(() => useAlert(t('CHAT_LIST.FETCH_ERROR')))
+    .finally(emitConversationLoaded);
 }
 
 function closeAdvanceFiltersModal() {
@@ -623,6 +619,9 @@ function updateAssigneeTab(selectedTab) {
     activeAssigneeTab.value = selectedTab;
     if (!currentPage.value) {
       fetchConversations();
+    } else {
+      store.dispatch('invalidateConversationListRequests');
+      store.dispatch('updateChatListFilters', conversationFilters.value);
     }
   }
 }
@@ -633,6 +632,20 @@ function onBasicFilterChange(value, type) {
   } else {
     activeSortBy.value = value;
   }
+
+  if (type === 'sort' && hasAppliedFiltersOrActiveFolders.value) {
+    resetBulkActions();
+    store.dispatch('conversationPage/reset');
+    store.dispatch('emptyAllConversations');
+
+    if (hasActiveFolders.value) {
+      fetchSavedFilteredConversations(activeFolder.value.query);
+    } else {
+      fetchFilteredConversations(appliedFilters.value);
+    }
+    return;
+  }
+
   resetAndFetchData();
 }
 
@@ -655,29 +668,7 @@ function openLastItemAfterDeleteInFolder() {
 }
 
 function redirectToConversationList() {
-  const {
-    params: { accountId, inbox_id: inboxId, label, teamId },
-    name,
-  } = route;
-
-  let conversationType = '';
-  if (isOnMentionsView({ route: { name } })) {
-    conversationType = wootConstants.CONVERSATION_TYPE.MENTION;
-  } else if (isOnParticipatingView({ route: { name } })) {
-    conversationType = wootConstants.CONVERSATION_TYPE.PARTICIPATING;
-  } else if (isOnUnattendedView({ route: { name } })) {
-    conversationType = wootConstants.CONVERSATION_TYPE.UNATTENDED;
-  }
-  router.push(
-    conversationListPageURL({
-      accountId,
-      conversationType: conversationType,
-      customViewId: props.foldersId,
-      inboxId,
-      label,
-      teamId,
-    })
-  );
+  router.push(buildConversationListPath());
 }
 
 async function assignPriority(priority, conversationId = null) {
@@ -904,11 +895,8 @@ watch(chatLists, () => {
   chatsOnView.value = conversationList.value;
 });
 
-watch(conversationFilters, (newVal, oldVal) => {
-  if (newVal !== oldVal) {
-    store.dispatch('updateChatListFilters', newVal);
-  }
-});
+// Filters can be applied from outside the list, so clear the selection here.
+watch(appliedFilters, () => resetBulkActions());
 </script>
 
 <template>
@@ -922,6 +910,7 @@ watch(conversationFilters, (newVal, oldVal) => {
     <slot />
     <ChatListHeader
       :page-title="pageTitle"
+      :contact-filter="appliedContactFilter"
       :has-applied-filters="hasAppliedFilters"
       :has-active-folders="hasActiveFolders"
       :active-status="activeStatus"
