@@ -1,3 +1,4 @@
+/* global axios */
 import CacheEnabledApiClient from './CacheEnabledApiClient';
 
 class CannedResponse extends CacheEnabledApiClient {
@@ -29,6 +30,7 @@ class CannedResponse extends CacheEnabledApiClient {
     return axios.patch(`${this.url}/${id}`, this.toFormData(data));
   }
 
+  // eslint-disable-next-line class-methods-use-this
   toFormData(data) {
     const formData = new FormData();
     formData.append('canned_response[short_code]', data.short_code);
