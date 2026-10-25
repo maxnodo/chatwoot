@@ -137,6 +137,16 @@ async function pollPreparations(db: SupabaseClient, tool: ListeningTool) {
   }
 }
 
+async function startPendingPreparations(db: SupabaseClient, tool: ListeningTool) {
+  const { data: runs } = await db.from("nodo_coc_recurring_news_runs")
+    .select("id,schedule_id,nodo_coc_recurring_news_schedules!inner(topic,lookback_days,conversation_id,conversation_display_id)")
+    .eq("status", "preparing").eq("preparation_attempts", 0).limit(20);
+  for (const row of runs ?? []) {
+    const schedule = row.nodo_coc_recurring_news_schedules as unknown as { topic: string; lookback_days: string; conversation_id: number; conversation_display_id: number };
+    await startPreparation(db, tool, { id: row.id, schedule_id: row.schedule_id, topic: schedule.topic, lookback_days: schedule.lookback_days, conversation_id: schedule.conversation_id, conversation_display_id: schedule.conversation_display_id });
+  }
+}
+
 async function deliverPrepared(db: SupabaseClient, token: string) {
   const { data: claims, error } = await db.rpc("nodo_claim_coc_news_deliveries");
   if (error) throw error;
@@ -183,6 +193,7 @@ Deno.serve(async (request) => {
   const { data: due, error } = await db.rpc("nodo_claim_due_coc_news_runs");
   if (error) return json({ error: "Could not claim scheduled news" }, 500);
   for (const row of due ?? []) await startPreparation(db, tool, row as Run);
+  await startPendingPreparations(db, tool);
   await pollPreparations(db, tool);
   const token = await getAdminToken(db);
   if (!token) return json({ error: "CRM delivery credential unavailable" }, 503);
