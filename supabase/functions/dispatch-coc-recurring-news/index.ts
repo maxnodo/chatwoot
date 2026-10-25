@@ -144,10 +144,11 @@ async function deliverPrepared(db: SupabaseClient, token: string) {
     await db.from("nodo_coc_recurring_news_events").insert({ schedule_id: claim.schedule_id, run_id: claim.run_id, event_type: "delivery_attempted", payload: { attempt: claim.attempt } });
     try {
       const { data: rawTarget } = await db.from("nodo_coc_recurring_news_schedules")
-        .select("id,contact_inbox_id,conversations!inner(account_id,inbox_id),contact_inboxes!inner(hmac_verified)")
+        .select("id,conversations!inner(account_id,inbox_id),contacts!inner(phone_number),contact_inboxes!inner(id)")
         .eq("id", claim.schedule_id).maybeSingle();
-      const target = rawTarget as { conversations: { account_id: number; inbox_id: number }; contact_inboxes: { hmac_verified: boolean } } | null;
-      if (!target || target.conversations.account_id !== ACCOUNT_ID || target.conversations.inbox_id !== INBOX_ID || !target.contact_inboxes.hmac_verified) {
+      const target = rawTarget as { conversations: { account_id: number; inbox_id: number }; contacts: { phone_number: string | null } } | null;
+      const phone = String(target?.contacts.phone_number ?? "").replace(/^\+/, "");
+      if (!target || target.conversations.account_id !== ACCOUNT_ID || target.conversations.inbox_id !== INBOX_ID || !/^\d{7,15}$/.test(phone)) {
         await db.from("nodo_coc_recurring_news_runs").update({ status: "failed", error_code: "recipient_not_verified", error_message: "La conversación o el contacto ya no cumplen las condiciones verificadas de entrega.", updated_at: new Date().toISOString() }).eq("id", claim.run_id).eq("status", "delivering");
         await db.from("nodo_coc_recurring_news_events").insert({ schedule_id: claim.schedule_id, run_id: claim.run_id, event_type: "failed", payload: { stage: "delivery", error_code: "recipient_not_verified" } });
         continue;

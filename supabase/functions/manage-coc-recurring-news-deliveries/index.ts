@@ -65,7 +65,10 @@ async function verifiedConversation(request: Request, db: SupabaseClient) {
   const { data: contactInbox } = await db.from("contact_inboxes")
     .select("id,contact_id,inbox_id,hmac_verified")
     .eq("id", contactInboxId).eq("contact_id", contactId).eq("inbox_id", INBOX_ID).maybeSingle();
-  if (!contactInbox?.hmac_verified) return null;
+  const { data: contact } = await db.from("contacts")
+    .select("id,phone_number").eq("id", contactId).maybeSingle();
+  const phone = String(contact?.phone_number ?? "").replace(/^\+/, "");
+  if (!contactInbox || !/^\d{7,15}$/.test(phone)) return null;
   return { conversation, contactInbox };
 }
 
