@@ -170,6 +170,12 @@ async function deliverPrepared(db: SupabaseClient, token: string) {
       });
       const body = await response.json().catch(() => ({})) as Record<string, unknown>;
       if (response.ok) {
+        const messageId = Number(body.id);
+        if (Number.isInteger(messageId) && messageId > 0) {
+          await db.from("messages").update({ sender_type: "Captain::Assistant", sender_id: ASSISTANT_ID })
+            .eq("id", messageId).eq("account_id", ACCOUNT_ID).eq("inbox_id", INBOX_ID)
+            .eq("conversation_id", claim.conversation_id).eq("message_type", 1);
+        }
         await db.from("nodo_coc_recurring_news_runs").update({ status: "delivered", delivered_at: new Date().toISOString(), delivery_message_id: body.id ?? null, updated_at: new Date().toISOString() }).eq("id", claim.run_id).eq("status", "delivering");
         await db.from("nodo_coc_recurring_news_events").insert({ schedule_id: claim.schedule_id, run_id: claim.run_id, event_type: "delivered", payload: { message_id: body.id ?? null } });
       } else {
