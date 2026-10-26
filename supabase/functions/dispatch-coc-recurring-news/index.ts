@@ -154,9 +154,9 @@ async function deliverPrepared(db: SupabaseClient, token: string) {
     await db.from("nodo_coc_recurring_news_events").insert({ schedule_id: claim.schedule_id, run_id: claim.run_id, event_type: "delivery_attempted", payload: { attempt: claim.attempt } });
     try {
       const { data: rawTarget } = await db.from("nodo_coc_recurring_news_schedules")
-        .select("id,conversations!inner(account_id,inbox_id),contacts!inner(phone_number),contact_inboxes!inner(id)")
+        .select("id,conversations!inner(account_id,inbox_id,status,assignee_id),contacts!inner(phone_number),contact_inboxes!inner(id)")
         .eq("id", claim.schedule_id).maybeSingle();
-      const target = rawTarget as { conversations: { account_id: number; inbox_id: number }; contacts: { phone_number: string | null } } | null;
+      const target = rawTarget as { conversations: { account_id: number; inbox_id: number; status: number; assignee_id: number | null }; contacts: { phone_number: string | null } } | null;
       const phone = String(target?.contacts.phone_number ?? "").replace(/^\+/, "");
       if (!target || target.conversations.account_id !== ACCOUNT_ID || target.conversations.inbox_id !== INBOX_ID || !/^\d{7,15}$/.test(phone)) {
         await db.from("nodo_coc_recurring_news_runs").update({ status: "failed", error_code: "recipient_not_verified", error_message: "La conversación o el contacto ya no cumplen las condiciones verificadas de entrega.", updated_at: new Date().toISOString() }).eq("id", claim.run_id).eq("status", "delivering");
@@ -175,6 +175,13 @@ async function deliverPrepared(db: SupabaseClient, token: string) {
           await db.from("messages").update({ sender_type: "Captain::Assistant", sender_id: ASSISTANT_ID })
             .eq("id", messageId).eq("account_id", ACCOUNT_ID).eq("inbox_id", INBOX_ID)
             .eq("conversation_id", claim.conversation_id).eq("message_type", 1);
+        }
+        // Chatwoot opens a conversation after an outgoing API message. Restore
+        // pending only when it was pending and unassigned before this delivery.
+        if (target.conversations.status === 2 && target.conversations.assignee_id === null) {
+          await db.from("conversations").update({ status: 2, updated_at: new Date().toISOString() })
+            .eq("id", claim.conversation_id).eq("account_id", ACCOUNT_ID).eq("inbox_id", INBOX_ID)
+            .eq("status", 0).is("assignee_id", null);
         }
         await db.from("nodo_coc_recurring_news_runs").update({ status: "delivered", delivered_at: new Date().toISOString(), delivery_message_id: body.id ?? null, updated_at: new Date().toISOString() }).eq("id", claim.run_id).eq("status", "delivering");
         await db.from("nodo_coc_recurring_news_events").insert({ schedule_id: claim.schedule_id, run_id: claim.run_id, event_type: "delivered", payload: { message_id: body.id ?? null } });
