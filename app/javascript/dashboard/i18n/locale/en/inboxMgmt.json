@@ -6,6 +6,11 @@
     "COUNT": "{n} inbox | {n} inboxes",
     "SEARCH_PLACEHOLDER": "Search inbox name, channel, or identifier...",
     "NO_RESULTS": "No inboxes found matching your search",
+    "CONNECTION_STATUS": {
+      "CONNECTED": "Connected",
+      "DISCONNECTED": "Disconnected — action required",
+      "UNKNOWN": "Connection status unavailable"
+    },
     "RECONNECTION_REQUIRED": "Your inbox is disconnected. You won't receive new messages until you reauthorize it.",
     "CLICK_TO_RECONNECT": "Click here to reconnect.",
     "WHATSAPP_REGISTRATION_INCOMPLETE": "Your WhatsApp Business registration isn’t complete. Please check your display name status in Meta Business Manager before reconnecting.",

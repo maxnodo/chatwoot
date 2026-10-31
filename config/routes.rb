@@ -674,6 +674,8 @@ Rails.application.routes.draw do
                                             defaults: { format: :md }
   get 'hc/:slug/articles/:article_slug', to: 'public/api/v1/portals/articles#show', as: :public_portal_article
 
+  post 'webhooks/evolution/:inbox_identifier/connection_status', to: 'webhooks/evolution_connection#create'
+
   # ----------------------------------------------------------------------
   # Used in mailer templates
   resource :app, only: [:index] do

@@ -12,6 +12,7 @@ import {
   useStore,
 } from 'dashboard/composables/store';
 import ChannelName from './components/ChannelName.vue';
+import InboxConnectionStatus from './components/InboxConnectionStatus.vue';
 import ChannelIcon from 'next/icon/ChannelIcon.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import { getInboxIdentifier, searchInboxes } from 'dashboard/helper/inbox';
@@ -150,12 +151,18 @@ const openDelete = inbox => {
               <ChannelIcon class="size-6 text-n-slate-10" :inbox="inbox" />
             </div>
             <div class="flex flex-col items-start gap-1 min-w-0">
-              <span
-                :title="inbox.name"
-                class="block text-heading-3 text-n-slate-12 capitalize truncate max-w-full"
-              >
-                {{ inbox.name }}
-              </span>
+              <div class="flex items-center gap-2 max-w-full">
+                <span
+                  :title="inbox.name"
+                  class="block text-heading-3 text-n-slate-12 capitalize truncate max-w-full"
+                >
+                  {{ inbox.name }}
+                </span>
+                <InboxConnectionStatus
+                  v-if="inbox.connection_status !== undefined"
+                  :status="inbox.connection_status"
+                />
+              </div>
               <div
                 class="flex items-center gap-1 min-w-0 max-w-full text-body-main text-n-slate-11"
               >

@@ -40,6 +40,11 @@
 #
 
 class Inbox < ApplicationRecord
+  CONNECTION_STATUS_TTL = 90.minutes
+  WHATSAPP_HEALTH_STATUS_TTL = 8.hours
+  HEALTHY_WHATSAPP_STATUSES = %w[ACTIVE APPROVED CONNECTED STANDARD VERIFIED].freeze
+  UNHEALTHY_WHATSAPP_STATUSES = %w[BANNED DELETED DISCONNECTED FLAGGED RATE_LIMITED RESTRICTED].freeze
+
   include Reportable
   include Avatarable
   include OutOfOffisable
@@ -47,6 +52,7 @@ class Inbox < ApplicationRecord
   include InboxAgentAvailability
   include InboxBrandedEmailLayoutable
   include InboxBotStatus
+  include InboxConnectionStatus
 
   # Not allowing characters:
   validates :name, presence: true
@@ -145,6 +151,13 @@ class Inbox < ApplicationRecord
 
   def api?
     channel_type == 'Channel::Api'
+  end
+
+  def connection_status
+    return api_connection_status if api?
+    return whatsapp_connection_status if whatsapp?
+
+    nil
   end
 
   def email?
